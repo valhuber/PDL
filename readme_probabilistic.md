@@ -4,9 +4,11 @@ notes: Describes how to use Rule.ai_decision() via natural language with Copilot
 target: Complete working system from single prompt via 'als genai create'
 source: docs/training/logic_bank_api_probabilistic.prompt (the Rosetta Stone for PR)
 related: readme_ai_mcp.md, README.md, docs/training/logic_bank_api.prompt
-version: 1.3
-date: Nov 13, 2025
+version: 1.4
+date: Nov 14, 2025
+status: ✅ PHASE 1 COMPLETE - Tested and validated
 changelog:
+  - 1.4 (Nov 14, 2025) - PHASE 1 COMPLETE: Generated working implementation from natural language, tested successfully
   - 1.3 (Nov 13, 2025) - Added Scenario 2: brownfield demo with complete prompt
   - 1.2 (Nov 13, 2025) - Added TARGET: complete working system from one prompt
   - 1.1 (Nov 13, 2025) - Clarified as "value computation" vs "decision", added appendix on request object inference
@@ -14,6 +16,33 @@ changelog:
 ---
 
 # Probabilistic Rules: Natural Language → AI Value Computation
+
+## ✅ Phase 1 Complete: Proof of Concept Validated (Nov 14, 2025)
+
+**Achievement:** Successfully generated complete probabilistic + deterministic rules implementation from single natural language prompt in **less than one day**.
+
+**Test Results:**
+- ✅ Copilot generated 233-line implementation from 5-sentence prompt
+- ✅ AI supplier selection working (OpenAI integration)
+- ✅ Deterministic rules cascading correctly (sums, formulas, constraints)
+- ✅ SysSupplierReq audit table created with migration
+- ✅ Logic executed: AI selected NJ supplier ($205) over Near East ($105) due to "Suez Canal blockage" context
+- ✅ Credit limit constraint properly rejected over-limit transaction
+- ✅ Complete audit trail with AI reasoning logged
+
+**Critical Fixes Required During Generation:**
+1. **Rule.count() syntax error** - Incorrectly assumed 'calling' parameter (only Rule.formula() has it)
+   - Fix: Updated training doc v1.2 with CRITICAL section on Rule API signatures
+2. **YAML test context** - Changed from config.py to separate config/ai_test_context.yaml
+   - Reason: Cleaner separation, easier version control
+3. **Terminology clarity** - Changed "AI decision" → "AI value computation"
+   - Reason: More specific, less ambiguous
+
+**Time Investment:** < 1 day from concept to working tested system
+
+**Next:** Phase 2 - Integrate into `als genai create` for full greenfield generation
+
+---
 
 ## Two Demo Scenarios
 
@@ -84,19 +113,26 @@ When user specifies `[store in SysXxxReq]`, Copilot will:
 
 **Testing & Demo Support:**
 
-Add to `config/config.py` for test scenarios:
-```python
-class Config:
-    # AI Testing Context (set to None for production)
-    AI_WORLD_CONDITIONS = 'ship aground in Suez Canal'
-    AI_MARKET_CONDITIONS = None
-    AI_TRAFFIC_CONDITIONS = None
+Add to `config/ai_test_context.yaml` for test scenarios:
+```yaml
+# AI Test Context - separated from application config
+# Set values to None or omit for production/normal conditions
+
+world_conditions: 'ship aground in Suez Canal'
+market_conditions: null
+traffic_conditions: null
+weather_conditions: null
 ```
 
-Copilot generates code that uses:
+Copilot generates code that loads this:
 ```python
-from config import config
-world_conditions = config.Config.AI_WORLD_CONDITIONS or 'normal operations'
+import yaml
+from pathlib import Path
+
+config_path = Path(__file__).parent.parent / 'config' / 'ai_test_context.yaml'
+with open(config_path, 'r') as f:
+    test_context = yaml.safe_load(f)
+world_conditions = test_context.get('world_conditions') or 'normal operations'
 ```
 
 Benefits:

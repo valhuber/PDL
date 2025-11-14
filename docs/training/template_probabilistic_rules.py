@@ -59,8 +59,7 @@ def declare_logic():
     # Count suppliers for conditional logic
     Rule.count(
         derive=models.Product.count_suppliers,
-        as_count_of=models.ProductSupplier,
-        calling=lambda row: row.product_id == row.id
+        as_count_of=models.ProductSupplier
     )
     
     # ========================================

@@ -59,8 +59,7 @@ def declare_logic():
     # 5a. Product.count_suppliers = Count of ProductSuppliers
     Rule.count(
         derive=models.Product.count_suppliers,
-        as_count_of=models.ProductSupplier,
-        calling=lambda row: row.product_id == row.id  # counting relationship
+        as_count_of=models.ProductSupplier
     )
     
     # 5b. Item Unit Price - Conditional Logic (Deterministic decides when AI runs)

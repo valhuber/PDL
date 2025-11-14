@@ -5,8 +5,37 @@ source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabili
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
 version: 1.1
 changelog:
+  - 1.2 (Nov 14, 2025): Added CRITICAL section on actual Rule API syntax - Rule.count() does NOT have 'calling' parameter
   - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context, improved Alembic instructions
   - 1.0 (Nov 13, 2025): Initial version with Rule.ai_decision API design
+---
+
+CRITICAL: Actual Rule API Syntax
+
+Before using ANY Rule method, consult docs/training/logic_bank_api.prompt for the ACTUAL API.
+
+Common mistakes when generating probabilistic + deterministic rules:
+
+❌ WRONG: Rule.count(derive=Product.count_suppliers, as_count_of=ProductSupplier, calling=lambda...)
+✅ RIGHT: Rule.count(derive=Product.count_suppliers, as_count_of=ProductSupplier)
+
+Rule.count() signature (from logic_bank_api.prompt):
+  Rule.count(derive: Column, as_count_of: object, where: any = None, insert_parent: bool=False)
+  - NO 'calling' parameter
+  - Use 'where' for filtering, not 'calling'
+
+Rule.formula() signature (from logic_bank_api.prompt):
+  Rule.formula(derive: Column, as_expression: Callable = None, calling: Callable = None, no_prune: bool = False)
+  - HAS 'calling' parameter for complex logic
+  - Use 'calling' when conditional logic needed (like deciding when to invoke AI)
+
+Rule.sum() signature (from logic_bank_api.prompt):
+  Rule.sum(derive: Column, as_sum_of: any, where: any = None, insert_parent: bool=False)
+  - NO 'calling' parameter
+  - Use 'where' for filtering
+
+Always check logic_bank_api.prompt for correct syntax before generating rules!
+
 ---
 
 ```plaintext
