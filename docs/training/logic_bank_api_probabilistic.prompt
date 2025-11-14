@@ -1,25 +1,36 @@
+---
+title: LogicBank Probabilistic Rules API (AI Value Computation)
+description: Training document for translating natural language into probabilistic value computation rules
+source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabilistic.prompt
+usage: AI assistants read this to generate probabilistic + deterministic rules implementations
+version: 1.1
+changelog:
+  - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context, improved Alembic instructions
+  - 1.0 (Nov 13, 2025): Initial version with Rule.ai_decision API design
+---
+
 ```plaintext
-Here is the API for LogicBank Probabilistic Rules (AI Decisions):
+Here is the API for LogicBank Probabilistic Rules (AI Value Computation):
 
-Translate user prompts about AI-driven decisions into calls to Rule.ai_decision, described here.
+Translate user prompts about AI-computed values into probabilistic rules using the manual pattern.
 
-This extends the deterministic LogicBank rules with probabilistic reasoning capabilities.
-Use this when decisions require contextual reasoning that cannot be expressed as simple formulas.
+This extends the deterministic LogicBank rules with probabilistic value computation capabilities.
+Use this when computing values requires contextual reasoning that cannot be expressed as simple formulas.
 
 
 class Rule:
     """ Invoke this function to declare probabilistic (AI-driven) decision rules """
 
     @staticmethod
-    def ai_decision(derive: Column,
-                    from_candidates: Callable,
-                    optimize_for: list[str] = None,
-                    considering: dict = None,
-                    reasoning_to: Column = None,
-                    request_to: Column = None,
-                    model: str = "gpt-4o-2024-08-06"):
+    def ai_value(derive: Column,
+                 from_candidates: Callable,
+                 optimize_for: list[str] = None,
+                 considering: dict = None,
+                 reasoning_to: Column = None,
+                 request_to: Column = None,
+                 model: str = "gpt-4o-2024-08-06"):
         """
-        AI Decision declares a probabilistic choice from candidates using LLM reasoning.
+        AI Value computes a column value probabilistically by selecting from candidates using LLM reasoning.
         
         Use this when you need intelligent selection based on multiple factors that
         require contextual reasoning (supply chain optimization, dynamic pricing, 
@@ -226,7 +237,66 @@ Common Patterns:
    b) If exists and matches convention → Use it
    c) If exists but wrong structure → ERROR with clear message
    d) If doesn't exist → Create it with standard structure
-   e) Generate Alembic migration if table created
+   e) Add relationships to other models (Item, Product, Supplier)
+   f) Generate Alembic migration and apply it
+   
+   CRITICAL: Alembic Migration Steps (when creating SysXxxReq):
+   
+   Step 1: Add model to database/models.py with relationships:
+   
+   class SysSupplierReq(Base):
+       __tablename__ = "sys_supplier_req"
+       _s_collection_name = 'SysSupplierReq'
+       
+       id = Column(Integer, primary_key=True)
+       item_id = Column(Integer, ForeignKey("item.id"), index=True, nullable=True)
+       product_id = Column(Integer, ForeignKey("product.id"), index=True, nullable=False)
+       chosen_supplier_id = Column(Integer, ForeignKey("supplier.id"))
+       chosen_unit_price : DECIMAL = Column(DECIMAL)
+       request = Column(String(2000))
+       reason = Column(String(500))
+       created_on = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+       
+       # parent relationships
+       item : Mapped["Item"] = relationship(back_populates="SysSupplierReqList")
+       product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
+       chosen_supplier : Mapped["Supplier"] = relationship()
+   
+   Step 2: Add child relationships to parent models:
+   
+   # In Product class:
+   SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="product")
+   
+   # In Item class:
+   SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
+   
+   Step 3: Generate and apply Alembic migration:
+   
+   # From database directory (where alembic.ini lives):
+   cd database
+   source /path/to/venv/bin/activate  # or use project's venv
+   
+   # First, ensure DB is at current head (sync state if needed):
+   alembic current  # Check current version
+   # If no version shown, database may need stamping:
+   alembic stamp head  # Mark DB as current with existing migrations
+   
+   # Generate migration for new table:
+   alembic revision --autogenerate -m "Add SysSupplierReq table"
+   
+   # Apply migration:
+   alembic upgrade head
+   
+   # Verify:
+   alembic current  # Should show new migration version
+   
+   Step 4: Update ui/admin/admin.yaml to add SysSupplierReq resource
+   
+   Common Alembic Issues:
+   - "Target database is not up to date" → Run `alembic stamp head` first
+   - "Table already exists" → Database has tables but Alembic doesn't know about them, use stamp
+   - "No config file found" → Must run from database/ directory where alembic.ini exists
+   - Python not found → Activate venv first or use python3
    
    Error Handling for Mismatched Tables:
    If SysXxxReq exists but doesn't match convention, FAIL with:
@@ -245,26 +315,36 @@ Common Patterns:
    
    Benefits: Complete audit trail, governance, debugging, reproducibility
 
-2. Test Context from Config:
-   Support testing and demos via config/config.py:
+2. Test Context from YAML:
+   Support testing and demos via config/ai_test_context.yaml:
    
-   class Config:
-       # AI Testing Context (set to None for production)
-       AI_WORLD_CONDITIONS = 'ship aground in Suez Canal'
-       AI_MARKET_CONDITIONS = None
-       AI_TRAFFIC_CONDITIONS = None
+   # config/ai_test_context.yaml
+   world_conditions: 'ship aground in Suez Canal'
+   market_conditions: null
+   traffic_conditions: null
+   weather_conditions: null
    
    Usage in generated code:
-   from config import config
+   import yaml
+   from pathlib import Path
    
-   world_conditions = config.Config.AI_WORLD_CONDITIONS or 'normal operations'
-   considering={'world_conditions': world_conditions, ...}
+   world_conditions = 'normal operations'
+   try:
+       config_dir = Path(__file__).parent.parent.parent / 'config'
+       context_file = config_dir / 'ai_test_context.yaml'
+       if context_file.exists():
+           with open(context_file, 'r') as f:
+               test_context = yaml.safe_load(f)
+               world_conditions = test_context.get('world_conditions') or 'normal operations'
+   except Exception as e:
+       app_logger.debug(f"Could not load AI test context: {e}")
    
    This enables:
    - Reproducible testing
    - Demo scenarios without code changes
    - Version-controlled test conditions
    - Easy toggle between test/production
+   - Clean separation from application config
 
 3. Fallback Strategy (API Key Missing):
    Always provide graceful degradation when OpenAI unavailable.
@@ -329,28 +409,29 @@ The Rule.ai_decision automatically handles:
 You do NOT need to write error handling code - it's built into the rule.
 
 
-DO NOT create custom functions to call OpenAI directly.
-Use Rule.ai_decision which provides:
-- Consistent error handling
-- Automatic audit trails
-- Graceful fallbacks
-- Integration with deterministic rules
-- Transaction safety
+IMPLEMENTATION REFERENCE:
 
-WRONG (do not do this):
-    def my_custom_ai_function(row, old_row, logic_row):
-        client = OpenAI(api_key=...)
-        messages = [...]
-        response = client.chat.completions.create(...)
-        # manual parsing, error handling, etc.
-    Rule.early_row_event(SomeClass, calling=my_custom_ai_function)
+The Rule.ai_value() API is not yet implemented in LogicBank.
+Until it is, use the MANUAL PATTERN from the template file.
 
-RIGHT (do this instead):
-    Rule.ai_decision(
-        derive=SomeClass.chosen_option,
-        from_candidates=lambda row: [...],
-        optimize_for=[...],
-        considering={...},
-        reasoning_to=SomeClass.reason
-    )
+See: docs/training/template_probabilistic_rules.py
+
+This template shows the complete working pattern with:
+- Request Pattern (SysXxxReq audit table)
+- Conditional logic (when to invoke AI)
+- AI event handler (OpenAI integration)
+- Graceful fallbacks (no API key handling)
+- Test context loading (from YAML)
+- Error handling
+- Complete audit trail
+
+Copy relevant sections from the template and adapt to your specific use case.
+
+The template is structured in 4 clear sections:
+1. Deterministic Guardrails (constraints)
+2. Deterministic Calculations (sums, formulas)
+3. Conditional Logic (decides when AI runs)
+4. AI Event Handler (probabilistic decision)
+
+Each section has detailed comments explaining the pattern and showing working code.
 ```

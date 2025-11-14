@@ -1,0 +1,17 @@
+# AI Testing Context for Probabilistic Rules
+# Set conditions to None for production, or specify test scenarios for demos/testing
+#
+# These values are loaded at runtime by probabilistic rules to simulate
+# world conditions, market conditions, etc. for reproducible testing.
+
+world_conditions: 'ship aground in Suez Canal'
+# Examples: 'normal operations', 'hurricane in Gulf of Mexico', 'Suez Canal blocked'
+
+market_conditions: null
+# Examples: 'supply shortage', 'high demand', 'price volatility'
+
+traffic_conditions: null
+# Examples: 'heavy traffic on I-95', 'road closure on Route 1'
+
+weather_conditions: null
+# Examples: 'severe storm warning', 'clear skies'
