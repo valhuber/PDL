@@ -20,5 +20,8 @@ if [ $# -eq 0 ]
 fi
 
 cp database/db_restart.sqlite database/db.sqlite
+cp database/models_restart.py database/models.py
+cp ui/admin/admin_restart.yaml ui/admin/admin.yaml
+
 rm logic/logic_discovery/check_credit.py
 rm logic/logic_discovery/app_integration.py
