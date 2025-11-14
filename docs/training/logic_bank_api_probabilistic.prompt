@@ -3,8 +3,9 @@ title: LogicBank Probabilistic Rules API (AI Value Computation)
 description: Training document for translating natural language into probabilistic value computation rules
 source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabilistic.prompt
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
-version: 1.1
+version: 1.3
 changelog:
+  - 1.3 (Nov 14, 2025): Use introspection-based compute_ai_value() utility, add logic_row.log() pattern
   - 1.2 (Nov 14, 2025): Added CRITICAL section on actual Rule API syntax - Rule.count() does NOT have 'calling' parameter
   - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context, improved Alembic instructions
   - 1.0 (Nov 13, 2025): Initial version with Rule.ai_decision API design
@@ -38,64 +39,107 @@ Always check logic_bank_api.prompt for correct syntax before generating rules!
 
 ---
 
+CRITICAL: Logging Pattern
+
+ALWAYS use logic_row.log() instead of app_logger for rule execution logging:
+
+❌ WRONG: app_logger.info(f"Item {row.id} - Product has {row.product.count_suppliers} suppliers")
+✅ RIGHT: logic_row.log(f"Item - Product has {row.product.count_suppliers} suppliers")
+
+Benefits of logic_row.log():
+- Automatic indentation showing rule cascade depth
+- Grouped with related logic execution
+- Visible in logic trace output
+- No need to import logging module
+
+Example:
+```python
+def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row: LogicRow):
+    if row.product is None:
+        logic_row.log("Item - No product assigned, unit_price = 0")
+        return Decimal('0')
+    
+    if row.product.count_suppliers == 0:
+        logic_row.log("Item - Product has no suppliers, using product.unit_price")
+        return row.product.unit_price
+    
+    logic_row.log(f"Item - Product has {row.product.count_suppliers} suppliers, invoking AI")
+    # ... AI logic
+```
+
+Only use app_logger for non-rule system messages (startup, configuration, errors outside rule execution).
+
+---
+
 ```plaintext
 Here is the API for LogicBank Probabilistic Rules (AI Value Computation):
 
-Translate user prompts about AI-computed values into probabilistic rules using the manual pattern.
+Translate user prompts about AI-computed values into probabilistic rules using the introspection-based pattern.
 
 This extends the deterministic LogicBank rules with probabilistic value computation capabilities.
 Use this when computing values requires contextual reasoning that cannot be expressed as simple formulas.
 
+---
 
-class Rule:
-    """ Invoke this function to declare probabilistic (AI-driven) decision rules """
+Implementation Pattern: Introspection-Based Utility
 
-    @staticmethod
-    def ai_value(derive: Column,
-                 from_candidates: Callable,
-                 optimize_for: list[str] = None,
-                 considering: dict = None,
-                 reasoning_to: Column = None,
-                 request_to: Column = None,
-                 model: str = "gpt-4o-2024-08-06"):
-        """
-        AI Value computes a column value probabilistically by selecting from candidates using LLM reasoning.
-        
-        Use this when you need intelligent selection based on multiple factors that
-        require contextual reasoning (supply chain optimization, dynamic pricing, 
-        route selection, resource allocation, etc.)
-        
-        The rule automatically:
-        - Constructs appropriate system/user messages for the LLM
-        - Handles JSON response parsing and validation
-        - Falls back to first candidate if API key unavailable or error occurs
-        - Stores complete audit trail for governance and explainability
+ALWAYS use the logic/system/ai_value_computation.py utility for AI value computation:
+
+from logic.system.ai_value_computation import compute_ai_value
+
+def ai_handler(row: models.SysXxxReq, old_row, logic_row: LogicRow):
+    """AI computes optimal value from candidates."""
+    if not logic_row.is_inserted():
+        return
+    
+    compute_ai_value(
+        row=row,                              # Request table row (SysSupplierReq, etc.)
+        logic_row=logic_row,                  # For logging and DB operations
+        candidates='relationship.path',       # e.g., 'product.ProductSupplierList'
+        optimize_for='natural language goal', # e.g., 'fastest reliable delivery'
+        fallback='min:field_name'            # e.g., 'min:unit_cost', 'max:rating', 'first'
+    )
+
+Rule.early_row_event(on_class=models.SysXxxReq, calling=ai_handler)
+
+What compute_ai_value() does automatically:
+- Discovers candidate objects via relationship navigation (row.product.ProductSupplierList)
+- Introspects all candidate fields (supplier_id, supplier_name, unit_cost, lead_time_days, region, etc.)
+- Introspects request table chosen_* columns (chosen_supplier_id, chosen_unit_price)
+- Maps AI response to result columns (chosen_supplier_id ← supplier_id, chosen_unit_price ← unit_cost)
+- Loads test context from config/ai_test_context.yaml
+- Calls OpenAI with structured prompt
+- Handles fallback when no API key (selects based on fallback strategy)
+- Stores complete audit trail (request, reason, created_on)
         
         Example 1: Supplier Selection
             Prompt:
                 Choose the best supplier for this item considering cost, lead time, 
-                and current world conditions like 'Suez Canal blocked'. 
-                Optimize for fastest delivery when disruptions are present.
-                Store the reasoning in the reason field and request in the request field.
+                and current world conditions. Optimize for fastest delivery when 
+                disruptions are present. [store in SysSupplierReq]
             
-            Response:
-                Rule.ai_decision(
-                    derive=SysSupplierReq.chosen_supplier_id,
-                    from_candidates=lambda row: [
-                        {'id': ps.supplier_id, 
-                         'cost': float(ps.unit_cost), 
-                         'lead_time_days': ps.lead_time_days, 
-                         'region': ps.supplier.region}
-                        for ps in row.product.ProductSupplierList
-                    ],
-                    optimize_for=['lead_time_days', 'unit_cost'],
-                    considering={
-                        'world_conditions': 'Suez Canal blocked', 
-                        'customer_region': 'US'
-                    },
-                    reasoning_to=SysSupplierReq.reason,
-                    request_to=SysSupplierReq.request
-                )
+            Response (user code in logic/logic_discovery/check_credit.py):
+                from logic.system.ai_value_computation import compute_ai_value
+                
+                def supplier_id_from_ai(row: models.SysSupplierReq, old_row, logic_row: LogicRow):
+                    """AI selects optimal supplier based on cost, lead time, and world conditions."""
+                    if not logic_row.is_inserted():
+                        return
+                    
+                    compute_ai_value(
+                        row=row,
+                        logic_row=logic_row,
+                        candidates='product.ProductSupplierList',
+                        optimize_for='fastest reliable delivery while keeping costs reasonable',
+                        fallback='min:unit_cost'
+                    )
+                
+                Rule.early_row_event(on_class=models.SysSupplierReq, calling=supplier_id_from_ai)
+            
+            What gets introspected automatically:
+                - Candidates: supplier_id, supplier_name, unit_cost, lead_time_days, region
+                - Results: chosen_supplier_id (← supplier_id), chosen_unit_price (← unit_cost)
+                - Test context: world_conditions from config/ai_test_context.yaml
 
         Example 2: Dynamic Pricing
             Prompt:
