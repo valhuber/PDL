@@ -1,0 +1,141 @@
+{
+    "models": [
+        {
+            "classname": "Customer",
+            "code": "class Customer(Base):\n    __tablename__ = 'customer'\n    id = Column(Integer, primary_key=True, autoincrement=True)\n    name = Column(String, unique=True)\n    balance = Column(DECIMAL)\n    credit_limit = Column(DECIMAL)",
+            "description": "Represents a customer in the system with unique name, balance, and credit limit attributes.",
+            "name": "Customer"
+        },
+        {
+            "classname": "Order",
+            "code": "class Order(Base):\n    __tablename__ = 'order'\n    id = Column(Integer, primary_key=True, autoincrement=True)\n    customer_id = Column(Integer, ForeignKey('customer.id'))\n    date_shipped = Column(Date)\n    amount_total = Column(DECIMAL)\n    notes = Column(String)",
+            "description": "Represents an order made by a customer, including a notes field.",
+            "name": "Order"
+        },
+        {
+            "classname": "Item",
+            "code": "class Item(Base):\n    __tablename__ = 'item'\n    id = Column(Integer, primary_key=True, autoincrement=True)\n    order_id = Column(Integer, ForeignKey('order.id'))\n    product_id = Column(Integer, ForeignKey('product.id'))\n    quantity = Column(Integer, nullable=False)\n    unit_price = Column(DECIMAL)\n    amount = Column(DECIMAL)",
+            "description": "Represents an item in an order, including quantity and pricing details.",
+            "name": "Item"
+        },
+        {
+            "classname": "Product",
+            "code": "class Product(Base):\n    __tablename__ = 'product'\n    id = Column(Integer, primary_key=True, autoincrement=True)\n    name = Column(String)\n    unit_price = Column(DECIMAL)",
+            "description": "Represents a product available in the system with a unit price.",
+            "name": "Product"
+        }
+    ],
+    "rules": [
+        {
+            "name": "Customer Balance Constraint",
+            "description": "Ensures the customer's balance is aligned with the credit limit.",
+            "use_case": "Customer.balance <= credit_limit",
+            "entity": "Customer",
+            "code": "Rule.constraint(validate=Customer,\n                as_condition=lambda row: row.balance <= row.credit_limit,\n                error_msg='Customer balance ({row.balance}) exceeds credit limit ({row.credit_limit})')"
+        },
+        {
+            "name": "Customer Balance Derivation",
+            "description": "Calculates the customer's balance as the sum of orders' amount_total where date_shipped is null.",
+            "use_case": "Customer.balance = Sum(Order.amount_total where date_shipped is null)",
+            "entity": "Customer",
+            "code": "Rule.sum(derive=Customer.balance, as_sum_of=Order.amount_total, where=lambda row: row.date_shipped is None)"
+        },
+        {
+            "name": "Order Amount Total Derivation",
+            "description": "Calculates order's amount_total as the sum of item amounts.",
+            "use_case": "Order.amount_total = Sum(Item.amount)",
+            "entity": "Order",
+            "code": "Rule.sum(derive=Order.amount_total, as_sum_of=Item.amount)"
+        },
+        {
+            "name": "Item Amount Derivation",
+            "description": "Calculates item amount as quantity multiplied by unit price.",
+            "use_case": "Item.amount = quantity * unit_price",
+            "entity": "Item",
+            "code": "Rule.formula(derive=Item.amount, as_expression=lambda row: row.quantity * row.unit_price)"
+        },
+        {
+            "name": "Copy Item Unit Price",
+            "description": "Copies the product's unit price to the item.",
+            "use_case": "Store the Item.unit_price as a copy from Product.unit_price",
+            "entity": "Item",
+            "code": "Rule.copy(derive=Item.unit_price, from_parent=Product.unit_price)"
+        },
+        {
+            "name": "Order Kafka Integration",
+            "description": "Sends the order to Kafka topic 'order_shipping' if the date shipped is not None.",
+            "use_case": "App Integration",
+            "entity": "Order",
+            "code": "Rule.after_flush_row_event(on_class=Order, calling=kafka_producer.send_row_to_kafka, if_condition=lambda row: row.date_shipped is not None, with_args={\"topic\": \"order_shipping\"})"
+        }
+    ],
+    "test_data": "Insert test data into the tables with values compatible with the derived logic.",
+    "test_data_rows": [
+        {
+            "test_data_row_variable": "test_customer_1",
+            "code": "test_customer_1 = Customer(name='Customer 1', balance=150, credit_limit=1000)"
+        },
+        {
+            "test_data_row_variable": "test_customer_2",
+            "code": "test_customer_2 = Customer(name='Customer 2', balance=275, credit_limit=750)"
+        },
+        {
+            "test_data_row_variable": "test_customer_3",
+            "code": "test_customer_3 = Customer(name='Customer 3', balance=150, credit_limit=1500)"
+        },
+        {
+            "test_data_row_variable": "test_customer_4",
+            "code": "test_customer_4 = Customer(name='Customer 4', balance=0, credit_limit=1200)"
+        },
+        {
+            "test_data_row_variable": "test_order_1",
+            "code": "test_order_1 = Order(customer_id=1, notes='Order 1 notes', amount_total=150)"
+        },
+        {
+            "test_data_row_variable": "test_order_2",
+            "code": "test_order_2 = Order(customer_id=2, notes='Order 2 notes', amount_total=225)"
+        },
+        {
+            "test_data_row_variable": "test_order_3",
+            "code": "test_order_3 = Order(customer_id=2, notes='Order 3 notes', amount_total=50)"
+        },
+        {
+            "test_data_row_variable": "test_order_4",
+            "code": "test_order_4 = Order(customer_id=3, notes='Order 4 notes', amount_total=150)"
+        },
+        {
+            "test_data_row_variable": "test_item_1",
+            "code": "test_item_1 = Item(order_id=1, product_id=1, quantity=3, unit_price=50, amount=150)"
+        },
+        {
+            "test_data_row_variable": "test_item_2",
+            "code": "test_item_2 = Item(order_id=2, product_id=2, quantity=2, unit_price=25, amount=50)"
+        },
+        {
+            "test_data_row_variable": "test_item_3",
+            "code": "test_item_3 = Item(order_id=3, product_id=3, quantity=3, unit_price=75, amount=225)"
+        },
+        {
+            "test_data_row_variable": "test_item_4",
+            "code": "test_item_4 = Item(order_id=4, product_id=1, quantity=3, unit_price=50, amount=150)"
+        },
+        {
+            "test_data_row_variable": "test_product_1",
+            "code": "test_product_1 = Product(name='Product 1', unit_price=50)"
+        },
+        {
+            "test_data_row_variable": "test_product_2",
+            "code": "test_product_2 = Product(name='Product 2', unit_price=25)"
+        },
+        {
+            "test_data_row_variable": "test_product_3",
+            "code": "test_product_3 = Product(name='Product 3', unit_price=75)"
+        },
+        {
+            "test_data_row_variable": "test_product_4",
+            "code": "test_product_4 = Product(name='Product 4', unit_price=100)"
+        }
+    ],
+    "test_data_sqlite": "INSERT INTO customers (name, balance, credit_limit) VALUES ('Customer 1', 300, 1000);\nINSERT INTO customers (name, balance, credit_limit) VALUES ('Customer 2', 500, 750);\nINSERT INTO customers (name, balance, credit_limit) VALUES ('Customer 3', 0, 1500);\nINSERT INTO customers (name, balance, credit_limit) VALUES ('Customer 4', 200, 1200);\n\nINSERT INTO orders (customer_id, notes, date_shipped, amount_total) VALUES (1, 'Order 1 notes', NULL, 150);\nINSERT INTO orders (customer_id, notes, date_shipped, amount_total) VALUES (2, 'Order 2 notes', NULL, 0);\nINSERT INTO orders (customer_id, notes, date_shipped, amount_total) VALUES (2, 'Order 3 notes', NULL, 0);\nINSERT INTO orders (customer_id, notes, date_shipped, amount_total) VALUES (3, 'Order 4 notes', NULL, 150);\n\nINSERT INTO items (order_id, product_id, quantity, unit_price, amount) VALUES (1, 1, 3, 50, 150);\nINSERT INTO items (order_id, product_id, quantity, unit_price, amount) VALUES (2, 2, 2, 25, 0);\nINSERT INTO items (order_id, product_id, quantity, unit_price, amount) VALUES (3, 3, 1, 75, 0);\nINSERT INTO items (order_id, product_id, quantity, unit_price, amount) VALUES (4, 1, 3, 50, 150);\n\nINSERT INTO products (name, unit_price) VALUES ('Product 1', 50);\nINSERT INTO products (name, unit_price) VALUES ('Product 2', 25);\nINSERT INTO products (name, unit_price) VALUES ('Product 3', 75);\nINSERT INTO products (name, unit_price) VALUES ('Product 4', 100);",
+    "name": "OrderManagementSystem"
+}

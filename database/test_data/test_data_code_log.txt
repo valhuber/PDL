@@ -1,0 +1,8 @@
+..  db_url: sqlite:////opt/projects/by-ulid/01JKB807WMNRKECY2F1ZRGE935/database/test_data/db.sqlite
+..  cwd: /opt/projects/by-ulid/01JKB807WMNRKECY2F1ZRGE935
+..  python_loc: /usr/local/bin/python
+..  test_data_loader version: 1.1
+..  LogicBank activated
+print(Pass: 1)
+Error adding variable to session: Missing Parent: product
+print(Pass: 2)

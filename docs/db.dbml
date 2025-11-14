@@ -1,0 +1,87 @@
+// Copy this text, paste to https://dbdiagram.io/d
+// Or, https://databasediagram.com/app
+// Or, view in VSCode with extension: "DBML Live Preview"
+
+Project DBML {
+  Note: '''
+Customer: Represents a customer in the system with unique name, balance, and credit limit attributes.
+Item: Represents an item in an order, including quantity and pricing details.
+Order: Represents an order made by a customer, including a notes field.
+Product: Represents a product available in the system with a unit price.
+ProductSupplier: Intersection table linking products to their suppliers with supply-specific information.
+Supplier: Represents a supplier that can provide products to the system.
+SysSupplierReq: System table for tracking supplier requests and AI-driven supplier selection for items and products.
+'''
+}
+
+Table Customer {
+    id INTEGER [primary key]
+    name VARCHAR 
+    balance DECIMAL 
+    credit_limit DECIMAL 
+    }
+
+Table Item {
+    id INTEGER [primary key]
+    order_id INTEGER 
+    product_id INTEGER 
+    quantity INTEGER 
+    unit_price DECIMAL 
+    amount DECIMAL 
+    }
+
+Table Order {
+    id INTEGER [primary key]
+    customer_id INTEGER 
+    date_shipped DATE 
+    amount_total DECIMAL 
+    notes VARCHAR 
+    }
+
+Table Product {
+    id INTEGER [primary key]
+    name VARCHAR 
+    unit_price DECIMAL 
+    count_suppliers INTEGER 
+    }
+
+Table ProductSupplier {
+    id INTEGER [primary key]
+    product_id INTEGER 
+    supplier_id INTEGER 
+    supplier_part_number VARCHAR 
+    unit_cost DECIMAL 
+    lead_time_days INTEGER 
+    }
+
+Table Supplier {
+    id INTEGER [primary key]
+    name VARCHAR 
+    contact_name VARCHAR 
+    phone VARCHAR 
+    email VARCHAR 
+    region VARCHAR 
+    }
+
+Table SysSupplierReq {
+    id INTEGER [primary key]
+    item_id INTEGER [null]
+    product_id INTEGER 
+    request VARCHAR 
+    top_n JSON 
+    chosen_supplier_id INTEGER 
+    reason VARCHAR 
+    created_on DATETIME 
+    }
+
+
+
+// Relationships
+    Ref: Item.(order_id) > Order.(id)
+    Ref: Item.(product_id) > Product.(id)
+    Ref: Order.(customer_id) > Customer.(id)
+    Ref: ProductSupplier.(product_id) > Product.(id)
+    Ref: ProductSupplier.(supplier_id) > Supplier.(id)
+    Ref: SysSupplierReq.(item_id) > Item.(id)
+    Ref: SysSupplierReq.(product_id) > Product.(id)
+    Ref: SysSupplierReq.(chosen_supplier_id) > Supplier.(id)

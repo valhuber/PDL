@@ -1,0 +1,82 @@
+{
+    "rules": [
+        {
+            "name": "Customer Balance Constraint",
+            "description": "Ensures the customer's balance is aligned with the credit limit.",
+            "use_case": "Customer.balance <= credit_limit",
+            "code": "Rule.constraint(validate=Customer,\n                as_condition=lambda row: row.balance <= row.credit_limit,\n                error_msg='Customer balance ({row.balance}) exceeds credit limit ({row.credit_limit})')",
+            "error": null,
+            "status": "active",
+            "entity": "Customer",
+            "id": "01JKB82RA96Z6AP9KMV92XAY4F"
+        },
+        {
+            "name": "Customer Balance Derivation",
+            "description": "Calculates the customer's balance as the sum of orders' amount_total where date_shipped is null.",
+            "use_case": "Customer.balance = Sum(Order.amount_total where date_shipped is null)",
+            "code": "Rule.sum(derive=Customer.balance, as_sum_of=Order.amount_total, where=lambda row: row.date_shipped is None)",
+            "error": null,
+            "status": "active",
+            "entity": "Customer",
+            "id": "01JKB82RACXVTNXZT9DTFBTSQC"
+        },
+        {
+            "name": "Order Amount Total Derivation",
+            "description": "Calculates order's amount_total as the sum of item amounts.",
+            "use_case": "Order.amount_total = Sum(Item.amount)",
+            "code": "Rule.sum(derive=Order.amount_total, as_sum_of=Item.amount)",
+            "error": null,
+            "status": "active",
+            "entity": "Order",
+            "id": "01JKB82RADYPSTZ7TEHKDNZ0C8"
+        },
+        {
+            "name": "Item Amount Derivation",
+            "description": "Calculates item amount as quantity multiplied by unit price.",
+            "use_case": "Item.amount = quantity * unit_price",
+            "code": "Rule.formula(derive=Item.amount, as_expression=lambda row: row.quantity * row.unit_price)",
+            "error": null,
+            "status": "active",
+            "entity": "Item",
+            "id": "01JKB82RAES56PEDRYNW0P4B0Y"
+        },
+        {
+            "name": "Copy Item Unit Price",
+            "description": "Copies the product's unit price to the item.",
+            "use_case": "Store the Item.unit_price as a copy from Product.unit_price",
+            "code": "Rule.copy(derive=Item.unit_price, from_parent=Product.unit_price)",
+            "error": null,
+            "status": "active",
+            "entity": "Item",
+            "id": "01JKB82RAEQKQRWV4S8R141YTQ"
+        },
+        {
+            "name": "Order Kafka Integration",
+            "description": "Sends the order to Kafka topic 'order_shipping' if the date shipped is not None.",
+            "use_case": "App Integration",
+            "code": "Rule.after_flush_row_event(on_class=Order, calling=kafka_producer.send_row_to_kafka, if_condition=lambda row: row.date_shipped is not None, with_args={\"topic\": \"order_shipping\"})",
+            "error": null,
+            "status": "active",
+            "entity": "Order",
+            "id": "01JKB82RAF54M07V3M86EE99VZ"
+        }
+    ],
+    "models": [
+        {
+            "classname": "Customer",
+            "code": "class Customer(Base):  # type: ignore\n    \"\"\"\n    description: Represents a customer in the system with unique name, balance, and credit limit attributes.\n    \"\"\"\n    __tablename__ = 'customer'\n    _s_collection_name = 'Customer'  # type: ignore\n\n    id = Column(Integer, primary_key=True)\n    name = Column(String, unique=True)\n    balance : DECIMAL = Column(DECIMAL)\n    credit_limit : DECIMAL = Column(DECIMAL)\n\n    # parent relationships (access parent)\n\n    # child relationships (access children)\n    OrderList : Mapped[List[\"Order\"]] = relationship(back_populates=\"customer\")"
+        },
+        {
+            "classname": "Product",
+            "code": "class Product(Base):  # type: ignore\n    \"\"\"\n    description: Represents a product available in the system with a unit price.\n    \"\"\"\n    __tablename__ = 'product'\n    _s_collection_name = 'Product'  # type: ignore\n\n    id = Column(Integer, primary_key=True)\n    name = Column(String)\n    unit_price : DECIMAL = Column(DECIMAL)\n\n    # parent relationships (access parent)\n\n    # child relationships (access children)\n    ItemList : Mapped[List[\"Item\"]] = relationship(back_populates=\"product\")"
+        },
+        {
+            "classname": "Order",
+            "code": "class Order(Base):  # type: ignore\n    \"\"\"\n    description: Represents an order made by a customer, including a notes field.\n    \"\"\"\n    __tablename__ = 'order'\n    _s_collection_name = 'Order'  # type: ignore\n\n    id = Column(Integer, primary_key=True)\n    customer_id = Column(ForeignKey('customer.id'))\n    date_shipped = Column(Date)\n    amount_total : DECIMAL = Column(DECIMAL)\n    notes = Column(String)\n\n    # parent relationships (access parent)\n    customer : Mapped[\"Customer\"] = relationship(back_populates=(\"OrderList\"))\n\n    # child relationships (access children)\n    ItemList : Mapped[List[\"Item\"]] = relationship(back_populates=\"order\")"
+        },
+        {
+            "classname": "Item",
+            "code": "class Item(Base):  # type: ignore\n    \"\"\"\n    description: Represents an item in an order, including quantity and pricing details.\n    \"\"\"\n    __tablename__ = 'item'\n    _s_collection_name = 'Item'  # type: ignore\n\n    id = Column(Integer, primary_key=True)\n    order_id = Column(ForeignKey('order.id'))\n    product_id = Column(ForeignKey('product.id'))\n    quantity = Column(Integer, nullable=False)\n    unit_price : DECIMAL = Column(DECIMAL)\n    amount : DECIMAL = Column(DECIMAL)\n\n    # parent relationships (access parent)\n    order : Mapped[\"Order\"] = relationship(back_populates=(\"ItemList\"))\n    product : Mapped[\"Product\"] = relationship(back_populates=(\"ItemList\"))"
+        }
+    ]
+}

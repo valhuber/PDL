@@ -1,0 +1,337 @@
+about:
+  date: February 05, 2025 14:26:18
+  recent_changes: works with modified safrs-react-admin
+  version: 0.0.0
+api_root: '{http_type}://{swagger_host}:{port}/{api}'
+authentication: '{system-default}'
+info:
+  number_relationships: 7
+  number_tables: 7
+info_toggle_checked: true
+resources:
+  Customer:
+    attributes:
+    - label: ' name*'
+      name: name
+      search: true
+      sort: true
+    - name: balance
+      type: DECIMAL
+    - name: credit_limit
+      type: DECIMAL
+    - name: id
+    description: Represents a customer in the system with unique name, balance, and
+      credit limit attributes.
+    info_list: Represents a customer in the system with unique name, balance, and
+      credit limit attributes.
+    tab_groups:
+    - direction: tomany
+      fks:
+      - customer_id
+      name: OrderList
+      resource: Order
+    type: Customer
+    user_key: name
+  Item:
+    attributes:
+    - label: ' id*'
+      name: id
+      search: true
+      sort: true
+    - name: order_id
+    - name: product_id
+    - name: quantity
+      required: true
+    - name: unit_price
+      type: DECIMAL
+    - name: amount
+      type: DECIMAL
+    description: Represents an item in an order, including quantity and pricing details.
+    info_list: Represents an item in an order, including quantity and pricing details.
+    tab_groups:
+    - direction: toone
+      fks:
+      - order_id
+      name: order
+      resource: Order
+    - direction: toone
+      fks:
+      - product_id
+      name: product
+      resource: Product
+    - direction: tomany
+      fks:
+      - item_id
+      name: SysSupplierReqList
+      resource: SysSupplierReq
+    type: Item
+    user_key: id
+  Order:
+    attributes:
+    - label: ' id*'
+      name: id
+      search: true
+      sort: true
+    - name: customer_id
+    - name: amount_total
+      type: DECIMAL
+    - name: notes
+    - name: date_shipped
+      type: DATE
+    description: Represents an order made by a customer, including a notes field.
+    info_list: Represents an order made by a customer, including a notes field.
+    tab_groups:
+    - direction: tomany
+      fks:
+      - order_id
+      name: ItemList
+      resource: Item
+    - direction: toone
+      fks:
+      - customer_id
+      name: customer
+      resource: Customer
+    type: Order
+    user_key: id
+  Product:
+    attributes:
+    - label: ' name*'
+      name: name
+      search: true
+      sort: true
+    - name: unit_price
+      type: DECIMAL
+    - name: count_suppliers
+      type: number
+    - name: id
+    description: Represents a product available in the system with a unit price.
+    info_list: Represents a product available in the system with a unit price.
+    tab_groups:
+    - direction: tomany
+      fks:
+      - product_id
+      name: ItemList
+      resource: Item
+    - direction: tomany
+      fks:
+      - product_id
+      name: ProductSupplierList
+      resource: ProductSupplier
+    - direction: tomany
+      fks:
+      - product_id
+      name: SysSupplierReqList
+      resource: SysSupplierReq
+    type: Product
+    user_key: name
+  ProductSupplier:
+    attributes:
+    - label: ' id*'
+      name: id
+      search: true
+      sort: true
+    - name: product_id
+    - name: supplier_id
+    - name: supplier_part_number
+      search: true
+    - name: unit_cost
+      type: DECIMAL
+    - name: lead_time_days
+      type: number
+    description: Intersection table linking products to their suppliers with supply-specific
+      information.
+    info_list: Links products to suppliers with pricing and delivery details.
+    tab_groups:
+    - direction: toone
+      fks:
+      - product_id
+      name: product
+      resource: Product
+    - direction: toone
+      fks:
+      - supplier_id
+      name: supplier
+      resource: Supplier
+    type: ProductSupplier
+    user_key: id
+  SPAComponent:
+    attributes:
+    - hidden: true
+      name: id
+      required: true
+    - name: Type
+    - name: prompt
+      type: textarea
+    - name: user_comments
+      type: textarea
+    - name: created_at
+      type: datetime
+    - name: ai_comments
+      type: textarea
+    - label: name
+      name: name
+      required: true
+      search: true
+    - name: code
+      type: textarea
+    hidden: true
+    order: 2002
+    sort: -created_at
+    tab_groups:
+    - direction: tomany
+      fks:
+      - id
+      name: ChildList
+      resource: SPAComponent
+    type: SPAComponent
+    user_key: name
+  SPAPage:
+    attributes:
+    - label: ' name*'
+      name: name
+      required: true
+      search: true
+      sort: true
+    - name: id
+      required: true
+    - name: contact
+    hidden: true
+    order: 2000
+    tab_groups:
+    - direction: tomany
+      fks:
+      - page_id
+      name: SectionList
+      resource: Section
+    type: SPAPage
+    user_key: name
+  SPASection:
+    attributes:
+    - name: order
+      sort: true
+      type: number
+    - label: ' name*'
+      name: name
+      required: true
+      search: true
+    - name: page_id
+    - name: title
+      required: true
+    - name: subtitle
+    - name: label
+    - name: Type
+    - name: paragraph
+      type: textarea
+    - name: content
+      type: textarea
+    - name: id
+    - name: background
+    - name: template
+    - name: style
+      type: json
+    - name: hidden
+      type: boolean
+    hidden: true
+    order: 2001
+    sort: order
+    tab_groups:
+    - direction: toone
+      fks:
+      - page_id
+      name: page
+      resource: SPASection
+    type: SPASection
+    user_key: name
+  Supplier:
+    attributes:
+    - label: ' name*'
+      name: name
+      search: true
+      sort: true
+    - name: contact_name
+      search: true
+    - name: phone
+    - name: email
+    - name: region
+      search: true
+    - name: id
+    description: Represents a supplier that can provide products to the system.
+    info_list: Supplier companies that provide products with contact information.
+    tab_groups:
+    - direction: tomany
+      fks:
+      - supplier_id
+      name: ProductSupplierList
+      resource: ProductSupplier
+    type: Supplier
+    user_key: name
+  SysSupplierReq:
+    attributes:
+    - label: ' id*'
+      name: id
+      search: true
+      sort: true
+    - name: item_id
+    - name: product_id
+    - name: chosen_supplier_id
+    - name: reason
+      search: true
+    - name: created_on
+      sort: true
+      type: datetime
+    - name: request
+    - name: top_n
+      type: json
+    description: System table for tracking supplier requests and AI-driven supplier
+      selection for items and products.
+    info_list: Tracks AI-driven supplier selection decisions with reasoning and audit
+      trail.
+    tab_groups:
+    - direction: toone
+      fks:
+      - item_id
+      name: item
+      resource: Item
+    - direction: toone
+      fks:
+      - product_id
+      name: product
+      resource: Product
+    - direction: toone
+      fks:
+      - chosen_supplier_id
+      name: chosen_supplier
+      resource: Supplier
+    type: SysSupplierReq
+    user_key: id
+settings:
+  HomeJS: /admin-app/home.js
+  max_list_columns: 8
+  style_guide:
+    applicationLocales:
+    - en
+    - es
+    currency_symbol: $
+    currency_symbol_position: left
+    date_format: LL
+    decimal_max: '1000000000'
+    decimal_min: '0'
+    decimal_separator: .
+    detail_mode: tab
+    edit_on_mode: dblclick
+    exclude_listpicker: false
+    include_translation: 'false'
+    keycloak_client_id: alsclient
+    keycloak_realm: kcals
+    keycloak_url: http://localhost:8080
+    locale: en
+    max_decimal_digits: '4'
+    min_decimal_digits: '2'
+    new_mode: dialog
+    pick_style: list
+    row_height: small,
+    serviceType: OntimizeEE
+    startSessionPath: /auth/login
+    style: light
+    thousand_separator: ','
+    use_keycloak: 'false'

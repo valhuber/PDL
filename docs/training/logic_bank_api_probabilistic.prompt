@@ -1,0 +1,356 @@
+```plaintext
+Here is the API for LogicBank Probabilistic Rules (AI Decisions):
+
+Translate user prompts about AI-driven decisions into calls to Rule.ai_decision, described here.
+
+This extends the deterministic LogicBank rules with probabilistic reasoning capabilities.
+Use this when decisions require contextual reasoning that cannot be expressed as simple formulas.
+
+
+class Rule:
+    """ Invoke this function to declare probabilistic (AI-driven) decision rules """
+
+    @staticmethod
+    def ai_decision(derive: Column,
+                    from_candidates: Callable,
+                    optimize_for: list[str] = None,
+                    considering: dict = None,
+                    reasoning_to: Column = None,
+                    request_to: Column = None,
+                    model: str = "gpt-4o-2024-08-06"):
+        """
+        AI Decision declares a probabilistic choice from candidates using LLM reasoning.
+        
+        Use this when you need intelligent selection based on multiple factors that
+        require contextual reasoning (supply chain optimization, dynamic pricing, 
+        route selection, resource allocation, etc.)
+        
+        The rule automatically:
+        - Constructs appropriate system/user messages for the LLM
+        - Handles JSON response parsing and validation
+        - Falls back to first candidate if API key unavailable or error occurs
+        - Stores complete audit trail for governance and explainability
+        
+        Example 1: Supplier Selection
+            Prompt:
+                Choose the best supplier for this item considering cost, lead time, 
+                and current world conditions like 'Suez Canal blocked'. 
+                Optimize for fastest delivery when disruptions are present.
+                Store the reasoning in the reason field and request in the request field.
+            
+            Response:
+                Rule.ai_decision(
+                    derive=SysSupplierReq.chosen_supplier_id,
+                    from_candidates=lambda row: [
+                        {'id': ps.supplier_id, 
+                         'cost': float(ps.unit_cost), 
+                         'lead_time_days': ps.lead_time_days, 
+                         'region': ps.supplier.region}
+                        for ps in row.product.ProductSupplierList
+                    ],
+                    optimize_for=['lead_time_days', 'unit_cost'],
+                    considering={
+                        'world_conditions': 'Suez Canal blocked', 
+                        'customer_region': 'US'
+                    },
+                    reasoning_to=SysSupplierReq.reason,
+                    request_to=SysSupplierReq.request
+                )
+
+        Example 2: Dynamic Pricing
+            Prompt:
+                Set the optimal price for this product considering competitor prices,
+                current inventory levels, and demand forecast. Optimize for profit 
+                while maintaining competitive position. Store reasoning in pricing_reason.
+            
+            Response:
+                Rule.ai_decision(
+                    derive=Product.current_price,
+                    from_candidates=lambda row: [
+                        {'price': p} 
+                        for p in range(int(row.cost * 1.1), int(row.cost * 2.0), 5)
+                    ],
+                    optimize_for=['profit_margin', 'competitive_position'],
+                    considering={
+                        'competitor_avg': row.competitor_avg_price,
+                        'inventory_level': row.stock_quantity,
+                        'demand_trend': row.demand_forecast
+                    },
+                    reasoning_to=Product.pricing_reason
+                )
+
+        Example 3: Route Optimization
+            Prompt:
+                Choose the best delivery route considering current traffic, weather 
+                conditions, and delivery urgency. Optimize for fastest delivery time.
+                Store the reasoning in route_reason.
+            
+            Response:
+                Rule.ai_decision(
+                    derive=Delivery.chosen_route_id,
+                    from_candidates=lambda row: [
+                        {'id': r.id, 
+                         'distance_miles': r.distance_miles, 
+                         'typical_minutes': r.typical_minutes,
+                         'toll_cost': r.toll_cost}
+                        for r in row.destination.AvailableRouteList
+                    ],
+                    optimize_for=['delivery_time', 'fuel_cost'],
+                    considering={
+                        'traffic': 'current heavy on I-95',
+                        'weather': row.weather_conditions,
+                        'priority': row.priority_level
+                    },
+                    reasoning_to=Delivery.route_reason
+                )
+
+        Example 4: Staff Assignment
+            Prompt:
+                Assign the best qualified staff member to this project considering
+                their skills, current workload, and project requirements. Optimize
+                for project success probability. Store reasoning in assignment_reason.
+            
+            Response:
+                Rule.ai_decision(
+                    derive=Project.assigned_staff_id,
+                    from_candidates=lambda row: [
+                        {'id': s.id,
+                         'skill_match': s.skill_score_for_project(row),
+                         'availability': s.available_hours,
+                         'experience_years': s.years_experience}
+                        for s in StaffMember.query.filter_by(available=True).all()
+                    ],
+                    optimize_for=['skill_match', 'availability'],
+                    considering={
+                        'project_complexity': row.complexity_rating,
+                        'deadline': row.due_date,
+                        'budget': row.budget_constraint
+                    },
+                    reasoning_to=Project.assignment_reason
+                )
+
+        Args:
+            derive: <class.attribute> where the chosen candidate ID (or value) will be stored
+            from_candidates: lambda returning list of dicts. Each dict must have:
+                - 'id' or the value being selected (for derive column)
+                - factor names matching those in optimize_for
+                - any other contextual attributes AI should consider
+            optimize_for: list of factor names to optimize (in priority order)
+                First item is highest priority. AI will balance all factors.
+            considering: dict of contextual conditions for AI to reason about
+                Keys are condition names, values are either:
+                - String literals: 'Suez Canal blocked'
+                - Row attribute references: row.weather_conditions
+                - Computed values: row.calculate_urgency()
+            reasoning_to: optional <class.attribute> where AI explanation will be stored
+                Use this for governance, audit trails, and explainability
+            request_to: optional <class.attribute> where the full AI request will be stored
+                Includes the complete prompt sent to the LLM for reproducibility
+            model: OpenAI model to use (default: gpt-4o-2024-08-06)
+                Can specify different models for different cost/quality tradeoffs
+        
+        Notes:
+            - AI decisions are only invoked when the rule's derived column is accessed
+            - Automatically inherits transaction context and rollback behavior
+            - Falls back gracefully: if API unavailable, selects first candidate
+            - Response format is always structured JSON for reliable parsing
+            - Full audit trail stored in request_to and reasoning_to columns
+        """
+        return AiDecision(derive=derive,
+                         from_candidates=from_candidates,
+                         optimize_for=optimize_for,
+                         considering=considering,
+                         reasoning_to=reasoning_to,
+                         request_to=request_to,
+                         model=model)
+
+
+Integration with Deterministic Rules:
+
+Probabilistic rules work seamlessly with deterministic rules in the same logic flow:
+
+    Prompt:
+        When an item is added to an order, choose the best supplier using AI,
+        then calculate the item amount as quantity * unit_price,
+        then update the order total as sum of item amounts,
+        then update the customer balance as sum of unshipped order totals,
+        then validate that customer balance does not exceed credit limit.
+
+    Response:
+        # Probabilistic: AI chooses supplier and sets unit_price
+        Rule.ai_decision(
+            derive=SysSupplierReq.chosen_supplier_id,
+            from_candidates=lambda row: [
+                {'id': ps.supplier_id, 'cost': float(ps.unit_cost), 
+                 'lead_time_days': ps.lead_time_days}
+                for ps in row.product.ProductSupplierList
+            ],
+            optimize_for=['lead_time_days', 'cost'],
+            considering={'world_conditions': 'Suez Canal blocked'},
+            reasoning_to=SysSupplierReq.reason
+        )
+        
+        # Deterministic: calculations cascade automatically
+        Rule.formula(derive=Item.amount, 
+                    as_expression=lambda row: row.quantity * row.unit_price)
+        Rule.sum(derive=Order.amount_total, as_sum_of=Item.amount)
+        Rule.sum(derive=Customer.balance, as_sum_of=Order.amount_total,
+                where=lambda row: row.date_shipped is None)
+        
+        # Deterministic: validation (guardrail for AI decision)
+        Rule.constraint(validate=Customer,
+                       as_condition=lambda row: row.balance <= row.credit_limit,
+                       error_msg="Customer balance exceeds credit limit")
+
+The key insight: AI makes the probabilistic decision (supplier choice), 
+then deterministic rules cascade and validate automatically.
+If AI's choice violates constraints, transaction rolls back - no special code needed.
+
+
+Common Patterns:
+
+1. Request Pattern (Required):
+   ALWAYS create a SysXxxReq table to capture AI requests/responses for audit.
+   This is mandatory for governance, explainability, and debugging.
+   
+   Convention - Sys{Domain}Req table structure:
+   - Name: Sys{Domain}Req (e.g., SysSupplierReq, SysPricingReq, SysRouteReq)
+   - chosen_{domain}_id: FK to selected entity (e.g., chosen_supplier_id)
+   - request: String(2000) - full AI prompt sent
+   - reason: String(500) - AI's explanation
+   - created_on: DateTime - timestamp
+   - Context FKs: Links to triggering entities (e.g., item_id, product_id)
+   
+   Table Generation Logic:
+   a) Check if Sys{Domain}Req exists in database/models.py
+   b) If exists and matches convention → Use it
+   c) If exists but wrong structure → ERROR with clear message
+   d) If doesn't exist → Create it with standard structure
+   e) Generate Alembic migration if table created
+   
+   Error Handling for Mismatched Tables:
+   If SysXxxReq exists but doesn't match convention, FAIL with:
+   
+   "Error: Cannot implement AI logic. SysXxxReq table exists but doesn't match required convention.
+   
+   Expected fields: chosen_xxx_id, request, reason, created_on
+   Found fields: [list actual fields]
+   
+   Resolution options:
+   1. Rename existing table fields to match convention
+   2. Specify different table name: [store in MyCustomAudit]
+   3. Drop existing SysXxxReq table
+   
+   Please fix and re-run your request."
+   
+   Benefits: Complete audit trail, governance, debugging, reproducibility
+
+2. Test Context from Config:
+   Support testing and demos via config/config.py:
+   
+   class Config:
+       # AI Testing Context (set to None for production)
+       AI_WORLD_CONDITIONS = 'ship aground in Suez Canal'
+       AI_MARKET_CONDITIONS = None
+       AI_TRAFFIC_CONDITIONS = None
+   
+   Usage in generated code:
+   from config import config
+   
+   world_conditions = config.Config.AI_WORLD_CONDITIONS or 'normal operations'
+   considering={'world_conditions': world_conditions, ...}
+   
+   This enables:
+   - Reproducible testing
+   - Demo scenarios without code changes
+   - Version-controlled test conditions
+   - Easy toggle between test/production
+
+3. Fallback Strategy (API Key Missing):
+   Always provide graceful degradation when OpenAI unavailable.
+   
+   Infer fallback from user's optimization criteria:
+   - "optimize for cost" → fallback to min(candidates, key=lambda c: c['cost'])
+   - "optimize for speed/time" → fallback to min(candidates, key=lambda c: c['lead_time'])
+   - "optimize for reliability" → fallback to max(candidates, key=lambda c: c['rating'])
+   - No optimization specified → fallback to candidates[0] (first available)
+   
+   Generated pattern:
+   api_key = os.getenv("APILOGICSERVER_CHATGPT_APIKEY")
+   if not api_key:
+       reasoning = "Fallback: no API key available, using [inferred strategy]"
+       chosen = [apply inferred fallback logic]
+       row.reason = reasoning
+       return chosen
+   
+   Store fallback reasoning in audit trail for transparency.
+
+4. Scope Validation:
+   Probabilistic rules are for VALUE COMPUTATION and SELECTION.
+   
+   Valid patterns:
+   ✅ "choose/select X from Y based on Z"
+   ✅ "compute/calculate/set X considering Y"
+   ✅ "determine X by evaluating Y options"
+   
+   Invalid patterns (MUST ERROR):
+   ❌ "ensure X is Y" (enforcement, not computation)
+   ❌ "make X happen" (action, not decision)
+   ❌ "predict X" (without selection context)
+   ❌ "guarantee X" (too vague/subjective)
+   
+   Error for invalid requests:
+   "Error: Cannot implement '[requirement]'
+   
+   Reason: This is not a computable value or selection decision.
+   
+   Probabilistic rules can:
+   ✅ Select from concrete candidates (suppliers, routes, prices)
+   ✅ Choose based on measurable factors (cost, time, distance)
+   ✅ Compute specific values (price, quantity, score)
+   
+   They cannot:
+   ❌ Ensure subjective states ('happy', 'satisfied')
+   ❌ Make open-ended predictions without candidates
+   ❌ Enforce unmeasurable qualities
+   
+   Please reformulate as a selection or computation."
+
+
+Error Handling:
+
+The Rule.ai_decision automatically handles:
+- Missing API key: falls back to first candidate
+- API timeout: falls back with logged warning  
+- Invalid JSON response: retries once, then fallback
+- No candidates provided: raises clear error
+- Constraint violations: normal LogicBank rollback
+
+You do NOT need to write error handling code - it's built into the rule.
+
+
+DO NOT create custom functions to call OpenAI directly.
+Use Rule.ai_decision which provides:
+- Consistent error handling
+- Automatic audit trails
+- Graceful fallbacks
+- Integration with deterministic rules
+- Transaction safety
+
+WRONG (do not do this):
+    def my_custom_ai_function(row, old_row, logic_row):
+        client = OpenAI(api_key=...)
+        messages = [...]
+        response = client.chat.completions.create(...)
+        # manual parsing, error handling, etc.
+    Rule.early_row_event(SomeClass, calling=my_custom_ai_function)
+
+RIGHT (do this instead):
+    Rule.ai_decision(
+        derive=SomeClass.chosen_option,
+        from_candidates=lambda row: [...],
+        optimize_for=[...],
+        considering={...},
+        reasoning_to=SomeClass.reason
+    )
+```
