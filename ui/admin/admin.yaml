@@ -5,8 +5,8 @@ about:
 api_root: '{http_type}://{swagger_host}:{port}/{api}'
 authentication: '{system-default}'
 info:
-  number_relationships: 7
-  number_tables: 7
+  number_relationships: 10
+  number_tables: 8
 info_toggle_checked: true
 resources:
   Customer:
@@ -255,6 +255,36 @@ resources:
       resource: ProductSupplier
     type: Supplier
     user_key: name
+  SysSupplierReq:
+    attributes:
+    - name: id
+    - name: item_id
+    - name: product_id
+    - name: chosen_supplier_id
+    - name: chosen_unit_price
+      type: DECIMAL
+    - name: request
+    - name: reason
+    - name: created_on
+      type: DateTime
+    description: Audit table for AI supplier selection requests and results
+    info_list: Audit table for AI supplier selection requests and results
+    tab_groups:
+    - direction: toone
+      fks:
+      - item_id
+      label: Item
+      resource: Item
+    - direction: toone
+      fks:
+      - product_id
+      label: Product
+      resource: Product
+    - direction: toone
+      fks:
+      - chosen_supplier_id
+      label: Supplier
+      resource: Supplier
 settings:
   HomeJS: /admin-app/home.js
   max_list_columns: 8

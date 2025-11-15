@@ -1,6 +1,6 @@
 # coding: utf-8
 import datetime
-from sqlalchemy import DECIMAL, DateTime  # API Logic Server GenAI assist
+from sqlalchemy import DECIMAL, DateTime, func  # API Logic Server GenAI assist
 from sqlalchemy import Column, DECIMAL, Date, ForeignKey, Integer, String, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -103,6 +103,7 @@ class Supplier(Base):  # type: ignore
 
     # child relationships (access children)
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="supplier")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="supplier")
 
 
 
@@ -170,26 +171,25 @@ class Item(Base):  # type: ignore
     SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
 
 
-
 class SysSupplierReq(Base):  # type: ignore
     """
-    description: System table for tracking supplier requests and AI-driven supplier selection for items and products.
+    description: Audit table for AI supplier selection requests and results
     """
-    __tablename__ = "sys_supplier_req"
+    __tablename__ = 'sys_supplier_req'
     _s_collection_name = 'SysSupplierReq'  # type: ignore
 
-    id = Column(Integer, primary_key=True)
-    item_id = Column(Integer, ForeignKey("item.id"), index=True, nullable=True)
-    product_id = Column(Integer, ForeignKey("product.id"), index=True, nullable=False)
-    chosen_supplier_id = Column(Integer, ForeignKey("supplier.id"))
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_id = Column(ForeignKey('item.id'), nullable=True)
+    product_id = Column(ForeignKey('product.id'), nullable=False)
+    chosen_supplier_id = Column(ForeignKey('supplier.id'))
     chosen_unit_price : DECIMAL = Column(DECIMAL)
-    request = Column(String(2000))
-    reason = Column(String(500))
-    created_on = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    request = Column(String)
+    reason = Column(String)
+    created_on = Column(DateTime, server_default=func.now())
 
     # parent relationships (access parent)
     item : Mapped["Item"] = relationship(back_populates="SysSupplierReqList")
     product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
-    chosen_supplier : Mapped["Supplier"] = relationship()
+    supplier : Mapped["Supplier"] = relationship(back_populates="SysSupplierReqList")
 
     # child relationships (access children)

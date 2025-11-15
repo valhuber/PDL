@@ -1,6 +1,16 @@
 """
 TEMPLATE: Probabilistic + Deterministic Rules Implementation
 
+⚠️ DOCUMENTATION REORGANIZED:
+For comprehensive documentation, see:
+- docs/training/genai_logic_patterns.md - Universal framework patterns
+- docs/training/probabilistic_logic_guide.md - Probabilistic logic implementation
+- docs/training/pdl_project_guide.md - PDL project workflows and troubleshooting
+
+This file provides a working code reference for copy/paste.
+
+---
+
 ARCHITECTURE (Post-Refactoring):
 - Business logic: logic/logic_discovery/check_credit.py (use case)
 - Reusable AI handlers: logic/logic_discovery/ai_requests/supplier_selection.py
@@ -12,12 +22,24 @@ KEY PATTERNS:
 3. get_supplier_price_from_ai() - encapsulates Request Pattern, returns price
 4. Auto-discovery scans logic_discovery/ recursively (including ai_requests/)
 
+⚠️ CRITICAL IMPORTS:
+- ALWAYS use: from logic_bank.logic_bank import Rule
+- NEVER use: from logic_bank.rule_bank.rule_bank import RuleBank
+- NEVER use: from logic_bank.extensions.rule_extensions import Rule
+
+⚠️ PDL PROJECT WORKFLOW:
+- restart.sh DELETES all generated logic files (check_credit.py, ai_requests/)
+- This resets project to "clean database" state before adding logic
+- After restart.sh, you MUST regenerate all logic files
+- restart.sh also OVERWRITES admin.yaml (loses custom table additions)
+- See pdl_project_guide.md for complete workflow
+
 This is a working reference implementation showing the complete pattern.
 """
 
 import database.models as models
 from logic_bank.exec_row_logic.logic_row import LogicRow
-from logic_bank.logic_bank import Rule
+from logic_bank.logic_bank import Rule  # ⚠️ CRITICAL: Use this import, not RuleBank
 from logic.logic_discovery.ai_requests.supplier_selection import get_supplier_price_from_ai
 
 def declare_logic():
@@ -155,6 +177,40 @@ NEW ARCHITECTURE (Post-Refactoring):
    - Rule.formula(calling=function) - function returns value
    - Conditional logic: if count == 0 then default else call AI
    - Clean abstraction - formula doesn't know about Request Pattern
+
+4. LOGICBANK TRIGGERED INSERT PATTERN (CRITICAL)
+   - Use logic_row.new_logic_row(models.SysSupplierReq) to create audit record
+   - Use logic_row.insert(reason="...") instead of session.add() + session.flush()
+   - This avoids "Session is already flushing" error
+   - Event handler fires DURING formula execution, populates fields
+   - Formula returns the populated value from audit record
+   
+   Example from ref_impl:
+   ```python
+   # Inside formula - create audit record using LogicBank API
+   sys_supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
+   sys_supplier_req = sys_supplier_req_logic_row.row
+   sys_supplier_req_logic_row.link(to_parent=logic_row)
+   sys_supplier_req.product_id = row.product_id
+   sys_supplier_req.item_id = row.id
+   sys_supplier_req_logic_row.insert(reason="Supplier AI Request")
+   return sys_supplier_req.chosen_unit_price  # Value populated by event handler
+   ```
+   
+   See: https://apilogicserver.github.io/Docs/Logic-Use/#in-logic
+
+5. COMPLETE WORKFLOW (Understanding restart.sh)
+   - restart.sh RESETS project to "clean database" state
+   - Deletes: logic/logic_discovery/check_credit.py, ai_requests/
+   - Overwrites: database/models.py, ui/admin/admin.yaml from _restart versions
+   - Purpose: Simulate starting from existing database, then add logic
+   
+   After restart.sh, you must:
+   a. Generate logic files (check_credit.py, supplier_selection.py)
+   b. Add SysSupplierReq model to database/models.py
+   c. Run alembic migration (often requires manual editing!)
+   d. Update ui/admin/admin.yaml with SysSupplierReq resource
+   e. Start server and test
 
 4. AUTO-DISCOVERY
    - Scans logic/logic_discovery/ recursively

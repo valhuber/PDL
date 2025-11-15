@@ -377,25 +377,21 @@ Common Patterns:
    # In Item class:
    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
    
-   Step 3: Generate and apply Alembic migration:
+   Step 3: Generate and apply Alembic migration to update database schema:
    
-   # From database directory (where alembic.ini lives):
+   # Use alembic to compute and apply the database changes
+   # See: https://apilogicserver.github.io/Docs/Database-Changes/#use-alembic-to-update-database-schema-from-model
+   
    cd database
-   source /path/to/venv/bin/activate  # or use project's venv
-   
-   # First, ensure DB is at current head (sync state if needed):
-   alembic current  # Check current version
-   # If no version shown, database may need stamping:
-   alembic stamp head  # Mark DB as current with existing migrations
-   
-   # Generate migration for new table:
    alembic revision --autogenerate -m "Add SysSupplierReq table"
    
-   # Apply migration:
-   alembic upgrade head
+   # CRITICAL: Edit the generated migration file in database/alembic/versions/
+   # - alembic --autogenerate detects ALL differences between models.py and database
+   # - You must REMOVE unwanted changes (ALTER TABLE statements on existing tables)
+   # - Keep ONLY the CREATE TABLE sys_supplier_req statement
+   # - Simplify downgrade() to only DROP TABLE sys_supplier_req
    
-   # Verify:
-   alembic current  # Should show new migration version
+   alembic upgrade head
    
    Step 4: Update ui/admin/admin.yaml to add SysSupplierReq resource
    
