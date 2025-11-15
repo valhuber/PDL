@@ -3,14 +3,35 @@ title: LogicBank Probabilistic Rules API (AI Value Computation)
 description: Training document for translating natural language into probabilistic value computation rules
 source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabilistic.prompt
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
-version: 1.4
+version: 1.5
+prerequisites:
+  - docs/training/logic_bank_patterns.prompt (general patterns - event signatures, logging, request pattern)
+  - docs/training/logic_bank_api.prompt (deterministic rule APIs)
 changelog:
-  - 1.4 (Nov 14, 2025): Replaced error-recovery instructions with explicit positive patterns for Rule.formula conditional, new_logic_row, and value assignment
-  - 1.3 (Nov 14, 2025): Use introspection-based compute_ai_value() utility, add logic_row.log() pattern
-  - 1.2 (Nov 14, 2025): Added CRITICAL section on actual Rule API syntax - Rule.count() does NOT have 'calling' parameter
-  - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context, improved Alembic instructions
+  - 1.5 (Nov 14, 2025): Refactored - extracted general patterns to logic_bank_patterns.prompt (50% size reduction)
+  - 1.4 (Nov 14, 2025): Replaced error-recovery instructions with explicit positive patterns
+  - 1.3 (Nov 14, 2025): Use introspection-based compute_ai_value() utility
+  - 1.2 (Nov 14, 2025): Added CRITICAL section on actual Rule API syntax
+  - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context
   - 1.0 (Nov 13, 2025): Initial version with Rule.ai_decision API design
 ---
+
+# PREREQUISITES - READ THESE FIRST
+
+Before using this file, you MUST read these foundation documents:
+
+1. **docs/training/logic_bank_patterns.prompt** - General LogicBank patterns
+   - Event handler signatures (row, old_row, logic_row)
+   - Logging with logic_row.log()
+   - Request Pattern with new_logic_row()
+   - Rule API syntax reference
+   - Common anti-patterns
+
+2. **docs/training/logic_bank_api.prompt** - Deterministic rule APIs
+   - Rule.sum(), Rule.count(), Rule.formula(), Rule.constraint(), etc.
+   - Complete API signatures and examples
+
+This file contains ONLY AI-specific probabilistic patterns.
 
 =============================================================================
 REQUIRED PATTERN: Conditional Formula with AI
@@ -58,26 +79,7 @@ Key points:
 ✅ Insert using logic_row: supplier_req_logic_row.insert()
 ✅ Copy AI result to target: item_row.unit_price = supplier_req.chosen_unit_price
 
-=============================================================================
-REQUIRED PATTERN: Request Pattern with new_logic_row
-=============================================================================
-
-ALWAYS use this pattern to create request objects:
-
-# ✅ CORRECT: Pass the MODEL CLASS to new_logic_row
-request_logic_row = logic_row.new_logic_row(models.SysSupplierReq)  # Pass CLASS
-request_row = request_logic_row.row  # Get instance from .row property
-request_row.item_id = parent_row.id  # Set attributes on instance
-request_logic_row.insert(reason="Create request")  # Insert using logic_row
-
-# ❌ WRONG: Creating instance first
-request_row = models.SysSupplierReq()  # Don't create instance yourself
-request_logic_row = logic_row.new_logic_row(request_row)  # ❌ TypeError!
-
-The new_logic_row() method:
-- Takes a MODEL CLASS as parameter
-- Returns a LogicRow wrapper with .row property containing the new instance
-- Use the returned logic_row for .insert(), not the plain row
+# For Request Pattern details, see docs/training/logic_bank_patterns.prompt PATTERN 3
 
 =============================================================================
 REQUIRED PATTERN: Value Assignment After AI
@@ -222,31 +224,19 @@ def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row:
 Only use app_logger for non-rule system messages (startup, configuration, errors outside rule execution).
 
 =============================================================================
-REQUIRED PATTERN: Type Handling for Database Fields
+AI-SPECIFIC: compute_ai_value() Type Handling
 =============================================================================
 
-The compute_ai_value() utility automatically handles type conversion, but understand these rules:
+The compute_ai_value() utility automatically handles type conversion for AI responses.
 
-✅ Foreign Key (ID) fields:
-- MUST be Python int type for SQLite
-- AI returns numeric values as correct type
-- chosen_supplier_id, chosen_product_id, etc. → int
+NOTE: For general type handling patterns in LogicBank, see docs/training/logic_bank_patterns.prompt PATTERN 7.
 
-✅ Monetary fields:
-- Should be Decimal type for precision
-- unit_price, unit_cost, amount, total → Decimal
-- Utility converts: Decimal(str(value))
+This utility automatically converts AI response values to correct database types:
+- Foreign keys (_id fields) → int
+- Monetary fields (_price, _cost, _amount) → Decimal
+- Other numeric fields → float or int based on column type
 
-✅ The compute_ai_value() utility does this automatically:
-```python
-if '_id' in field_name or field_name.endswith('_id'):
-    value = int(value)  # Foreign keys as int
-elif '_price' in field_name or '_cost' in field_name or '_amount' in field_name:
-    value = Decimal(str(value))  # Monetary as Decimal
-```
-
-You don't need to do manual type conversion when using compute_ai_value().
-The utility introspects column types and converts appropriately.
+You don't need manual type conversion when using compute_ai_value().
 
 ---
 
