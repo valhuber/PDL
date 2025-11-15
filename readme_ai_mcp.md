@@ -38,6 +38,8 @@ version: 0.1, for readme 11.09/25
 
 The diagram above shows the final step of a complete system, built and tested by Copilot with no manual code edits.
 
+![agent](images/Bus-Logic-Agent.png)
+
 &nbsp;
 
 ##  Step 1 – Create System
@@ -76,7 +78,12 @@ Use case: Check Credit
     2. The Customer's balance is the sum of the Order amount_total where date_shipped is null
     3. The Order's amount_total is the sum of the Item amount
     4. The Item amount is the quantity * unit_price
-    5. The Item unit_price is copied from the Product unit_price
+    5. Item unit_price: 
+       - IF Product has suppliers, 
+            use AI to select optimal supplier 
+            based on cost, lead time, and world conditions
+       - ELSE copy from Product.unit_price
+
 
 Use case: App Integration
     1. Send the Order to Kafka topic 'order_shipping' if the date_shipped is not None.

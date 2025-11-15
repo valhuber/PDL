@@ -81,7 +81,6 @@ class Product(Base):  # type: ignore
     # child relationships (access children)
     ItemList : Mapped[List["Item"]] = relationship(back_populates="product")
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="product")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="product")
 
 
 
@@ -165,31 +164,5 @@ class Item(Base):  # type: ignore
     # parent relationships (access parent)
     order : Mapped["Order"] = relationship(back_populates=("ItemList"))
     product : Mapped["Product"] = relationship(back_populates=("ItemList"))
-
-    # child relationships (access children)
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
-
-
-
-class SysSupplierReq(Base):  # type: ignore
-    """
-    description: System table for tracking supplier requests and AI-driven supplier selection for items and products.
-    """
-    __tablename__ = "sys_supplier_req"
-    _s_collection_name = 'SysSupplierReq'  # type: ignore
-
-    id = Column(Integer, primary_key=True)
-    item_id = Column(Integer, ForeignKey("item.id"), index=True, nullable=True)
-    product_id = Column(Integer, ForeignKey("product.id"), index=True, nullable=False)
-    chosen_supplier_id = Column(Integer, ForeignKey("supplier.id"))
-    chosen_unit_price : DECIMAL = Column(DECIMAL)
-    request = Column(String(2000))
-    reason = Column(String(500))
-    created_on = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-
-    # parent relationships (access parent)
-    item : Mapped["Item"] = relationship(back_populates="SysSupplierReqList")
-    product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
-    chosen_supplier : Mapped["Supplier"] = relationship()
 
     # child relationships (access children)

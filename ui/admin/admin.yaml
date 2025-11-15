@@ -255,47 +255,6 @@ resources:
       resource: ProductSupplier
     type: Supplier
     user_key: name
-  SysSupplierReq:
-    attributes:
-    - label: ' id*'
-      name: id
-      search: true
-      sort: true
-    - name: item_id
-    - name: product_id
-    - name: chosen_supplier_id
-    - name: chosen_unit_price
-      type: DECIMAL
-    - name: reason
-      search: true
-      type: textarea
-    - name: created_on
-      sort: true
-      type: datetime
-    - name: request
-      type: textarea
-    description: System table for tracking supplier requests and AI-driven supplier
-      selection.
-    info_list: Tracks AI-driven supplier selection decisions with reasoning and audit
-      trail.
-    tab_groups:
-    - direction: toone
-      fks:
-      - item_id
-      name: item
-      resource: Item
-    - direction: toone
-      fks:
-      - product_id
-      name: product
-      resource: Product
-    - direction: toone
-      fks:
-      - chosen_supplier_id
-      name: chosen_supplier
-      resource: Supplier
-    type: SysSupplierReq
-    user_key: id
 settings:
   HomeJS: /admin-app/home.js
   max_list_columns: 8
