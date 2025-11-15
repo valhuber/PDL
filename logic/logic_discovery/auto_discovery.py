@@ -13,15 +13,16 @@ def discover_logic():
     logic_path = Path(__file__).parent
     for root, dirs, files in os.walk(logic_path):
         for file in files:
-            if file.endswith(".py"):
+            if file.endswith(".py") and not file.endswith("auto_discovery.py"):
                 file_path = Path(root).joinpath(file)
-                spec = importlib.util.spec_from_file_location("module.name", file_path)
-                if file.endswith("auto_discovery.py"):
-                    pass
-                else:
-                    logic.append(file)
-                    each_logic_file = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(each_logic_file)  # runs "bare" module code (e.g., initialization)
+                # Create unique module name from relative path
+                rel_path = file_path.relative_to(logic_path)
+                module_name = str(rel_path).replace('/', '.').replace('\\', '.').replace('.py', '')
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                logic.append(file)
+                each_logic_file = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(each_logic_file)  # runs "bare" module code (e.g., initialization)
+                if hasattr(each_logic_file, 'declare_logic'):
                     each_logic_file.declare_logic()  # invoke create function
 
     # if False and Path(__file__).parent.parent.parent.joinpath("docs/project_is_genai_demo.txt").exists():

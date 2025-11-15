@@ -4,10 +4,11 @@ notes: Describes how to use Rule.ai_decision() via natural language with Copilot
 target: Complete working system from single prompt via 'als genai create'
 source: docs/training/logic_bank_api_probabilistic.prompt (the Rosetta Stone for PR)
 related: readme_ai_mcp.md, README.md, docs/training/logic_bank_api.prompt
-version: 1.5
-date: Nov 14, 2025
-status: ✅ PHASE 1 COMPLETE - Refactored with introspection utilities
+version: 1.6
+date: Nov 15, 2025
+status: ✅ PHASE 1 COMPLETE - Refactored architecture with ai_requests/
 changelog:
+  - 1.6 (Nov 15, 2025) - Architecture refactor: ai_requests/ folder, formula pattern, AI as value computation
   - 1.5 (Nov 14, 2025) - Refactored to introspection-based pattern: 233 lines → 60 lines (75% reduction)
   - 1.4 (Nov 14, 2025) - PHASE 1 COMPLETE: Generated working implementation from natural language, tested successfully
   - 1.3 (Nov 13, 2025) - Added Scenario 2: brownfield demo with complete prompt
@@ -17,6 +18,57 @@ changelog:
 ---
 
 # Probabilistic Rules: Natural Language → AI Value Computation
+
+## 🚀 Quick Test - Verify It Works
+
+### Test Procedure (Command Line)
+
+**1. Start the server:**
+```bash
+cd /path/to/PDL
+sh restart.sh x
+```
+
+**2. Test with curl (add Egyptian Cotton Sheets to order):**
+```bash
+curl -X POST http://localhost:5656/api/Item \
+  -H "Content-Type: application/vnd.api+json" \
+  -d '{
+    "data": {
+      "type": "Item",
+      "attributes": {
+        "order_id": 1,
+        "product_id": 6,
+        "quantity": 10
+      }
+    }
+  }'
+```
+
+**Expected Result:**
+- ✅ Item created successfully
+- ✅ AI selects NJ supplier ($205/unit) over Near East ($105/unit)
+- ✅ Reason: "Suez Canal blockage" from config/ai_test_context.yaml
+- ✅ Order total updated (Item.amount → Order.amount_total)
+- ✅ Customer balance updated (Order.amount_total → Customer.balance)
+- ✅ Credit check passes (balance ≤ credit_limit)
+- ✅ Audit trail in SysSupplierReq table (chosen_supplier_id, reason, request)
+
+**Check the logs:**
+```bash
+# Look for these messages:
+Logic Bank                 Item - Product has 2 suppliers, invoking AI
+Logic Bank                 get_supplier_price_from_ai - Product has 2 suppliers
+Logic Bank                 SysSupplierReq - AI selected supplier: NJ Supplier ($205.00)
+Logic Bank                 SysSupplierReq - Reason: NJ Supplier avoids Suez Canal disruption
+```
+
+**Alternative: Test via Admin UI**
+1. Open http://localhost:5656
+2. Navigate to Orders → Order #1
+3. Add Item: Product = Egyptian Cotton Sheets, Quantity = 10
+4. Save → Watch logic execute
+5. Check SysSupplierReq table for audit trail
 
 ## ✅ Phase 1 Complete: Proof of Concept Validated (Nov 14, 2025)
 
