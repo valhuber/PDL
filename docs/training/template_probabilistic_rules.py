@@ -68,12 +68,27 @@ def declare_logic():
     
     def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row: LogicRow):
         """
-        PATTERN: Deterministic rule decides when AI should run.
+        PATTERN: Conditional logic with AI integration.
+        
+        CRITICAL PATTERNS - Use these exact approaches:
+        
+        1. Event handler signature:
+           ✅ def handler(row, old_row, logic_row: LogicRow)
+           ❌ Never try LogicRow.get_logic_row(row) - doesn't exist!
+        
+        2. Creating request objects:
+           ✅ request_logic_row = logic_row.new_logic_row(models.SysSupplierReq)  # Pass CLASS
+           ✅ request_row = request_logic_row.row  # Get instance from .row
+           ❌ request_row = models.SysSupplierReq()  # Don't create instance first
+        
+        3. Copying AI results:
+           ✅ item_row.unit_price = supplier_req.chosen_unit_price  # Explicit copy
+           ❌ Assuming value propagates automatically
         
         Logic Flow:
         1. Check if product has suppliers
         2. If NO suppliers → use product unit_price
-        3. If YES suppliers → create SysSupplierReq (triggers AI)
+        3. If YES suppliers → create SysSupplierReq (triggers AI) → copy result
         """
         if row.product is None:
             return Decimal('0')
@@ -86,8 +101,9 @@ def declare_logic():
         app_logger.info(f"Item {row.id} - {row.product.count_suppliers} suppliers, invoking AI")
         
         # REQUEST PATTERN: Create audit/request object
+        # ✅ CORRECT: Pass CLASS to new_logic_row
         sys_supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
-        sys_supplier_req = sys_supplier_req_logic_row.row
+        sys_supplier_req = sys_supplier_req_logic_row.row  # Get instance from .row
         sys_supplier_req_logic_row.link(to_parent=logic_row)
         sys_supplier_req.product_id = row.product_id
         sys_supplier_req.item_id = row.id
@@ -95,7 +111,7 @@ def declare_logic():
         # Insert triggers AI event handler below
         sys_supplier_req_logic_row.insert(reason="AI Supplier Selection Request")
         
-        # Return the AI-selected price
+        # ✅ CORRECT: Explicitly return AI-selected price
         return sys_supplier_req.chosen_unit_price
     
     Rule.formula(
@@ -111,11 +127,25 @@ def declare_logic():
         """
         PATTERN: AI computes supplier_id value probabilistically, stores audit trail.
         
+        CRITICAL PATTERNS:
+        
+        1. Event handler signature (all three parameters required):
+           ✅ def handler(row: models.SysSupplierReq, old_row, logic_row: LogicRow)
+           ❌ Don't try to "get" logic_row - it's passed automatically
+        
+        2. Use introspection-based utility (eliminates 90% of boilerplate):
+           ✅ compute_ai_value(row, logic_row, candidates='product.ProductSupplierList', ...)
+           ❌ Don't write manual OpenAI integration code
+        
+        3. Type handling (utility does this automatically):
+           ✅ Foreign keys (_id fields) → int type
+           ✅ Monetary fields (_price, _cost) → Decimal type
+        
         Key Features:
         - Graceful fallback if no API key
         - Complete audit trail (request, reason, chosen values)
         - Test context from YAML file
-        - Error handling with fallback
+        - Automatic introspection of candidates and result fields
         """
         if not logic_row.is_inserted():
             return

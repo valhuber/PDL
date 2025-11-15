@@ -3,15 +3,116 @@ title: LogicBank Probabilistic Rules API (AI Value Computation)
 description: Training document for translating natural language into probabilistic value computation rules
 source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabilistic.prompt
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
-version: 1.3
+version: 1.4
 changelog:
+  - 1.4 (Nov 14, 2025): Replaced error-recovery instructions with explicit positive patterns for Rule.formula conditional, new_logic_row, and value assignment
   - 1.3 (Nov 14, 2025): Use introspection-based compute_ai_value() utility, add logic_row.log() pattern
   - 1.2 (Nov 14, 2025): Added CRITICAL section on actual Rule API syntax - Rule.count() does NOT have 'calling' parameter
   - 1.1 (Nov 14, 2025): Use template file instead of handoff.md, YAML test context, improved Alembic instructions
   - 1.0 (Nov 13, 2025): Initial version with Rule.ai_decision API design
 ---
 
+=============================================================================
+REQUIRED PATTERN: Conditional Formula with AI
+=============================================================================
+
+When user says "IF product has suppliers THEN use AI ELSE use default", use this exact pattern:
+
+# Step 1: Register early event handler (fires BEFORE formula)
+Rule.early_row_event(
+    on_class=models.Item,
+    calling=lambda row, old_row, logic_row: ItemUnitPriceFromSupplier(row, logic_row)
+)
+
+# Step 2: Formula that preserves AI-set value or uses default
+Rule.formula(
+    derive=models.Item.unit_price,
+    as_expression=lambda row: (
+        row.product.unit_price if row.product.count_suppliers == 0
+        else row.unit_price  # Preserve value set by event handler
+    )
+)
+
+# Step 3: Event handler that creates request and copies AI result
+def ItemUnitPriceFromSupplier(item_row: models.Item, logic_row: LogicRow):
+    if not logic_row.is_inserted() or item_row.product.count_suppliers == 0:
+        return
+    
+    # Create request using new_logic_row (pass CLASS not instance)
+    supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
+    supplier_req = supplier_req_logic_row.row  # Get the instance AFTER creation
+    
+    # Set request context
+    supplier_req.item_id = item_row.id
+    supplier_req.product_id = item_row.product_id
+    
+    # Insert triggers AI handler
+    supplier_req_logic_row.insert(reason="AI supplier selection request")
+    
+    # CRITICAL: Copy AI result to target row
+    item_row.unit_price = supplier_req.chosen_unit_price
+
+Key points:
+✅ Pass CLASS to new_logic_row: new_logic_row(models.SysSupplierReq)
+✅ Get instance from .row property: supplier_req = supplier_req_logic_row.row
+✅ Insert using logic_row: supplier_req_logic_row.insert()
+✅ Copy AI result to target: item_row.unit_price = supplier_req.chosen_unit_price
+
+=============================================================================
+REQUIRED PATTERN: Request Pattern with new_logic_row
+=============================================================================
+
+ALWAYS use this pattern to create request objects:
+
+# ✅ CORRECT: Pass the MODEL CLASS to new_logic_row
+request_logic_row = logic_row.new_logic_row(models.SysSupplierReq)  # Pass CLASS
+request_row = request_logic_row.row  # Get instance from .row property
+request_row.item_id = parent_row.id  # Set attributes on instance
+request_logic_row.insert(reason="Create request")  # Insert using logic_row
+
+# ❌ WRONG: Creating instance first
+request_row = models.SysSupplierReq()  # Don't create instance yourself
+request_logic_row = logic_row.new_logic_row(request_row)  # ❌ TypeError!
+
+The new_logic_row() method:
+- Takes a MODEL CLASS as parameter
+- Returns a LogicRow wrapper with .row property containing the new instance
+- Use the returned logic_row for .insert(), not the plain row
+
+=============================================================================
+REQUIRED PATTERN: Value Assignment After AI
+=============================================================================
+
+After AI completes and populates the request table, you MUST copy the result to the target row:
+
+# ✅ CORRECT: Explicit value assignment
+def event_handler(item_row: models.Item, logic_row: LogicRow):
+    supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
+    supplier_req = supplier_req_logic_row.row
+    
+    # Set up request
+    supplier_req.item_id = item_row.id
+    supplier_req.product_id = item_row.product_id
+    
+    # Insert triggers AI (AI sets chosen_supplier_id and chosen_unit_price)
+    supplier_req_logic_row.insert(reason="AI selection")
+    
+    # CRITICAL: Copy AI result to target row
+    item_row.unit_price = supplier_req.chosen_unit_price
+    logic_row.log(f"Set Item.unit_price = {item_row.unit_price} from AI")
+
+# ❌ WRONG: Assuming value propagates automatically
+# Item.unit_price stays None, causing formula errors downstream
+
+Why explicit assignment is required:
+- AI populates request table (SysSupplierReq.chosen_unit_price)
+- Target table (Item.unit_price) is separate
+- No automatic propagation between tables
+- Event handler MUST copy the value explicitly
+
+=============================================================================
 CRITICAL: Actual Rule API Syntax
+=============================================================================
 
 Before using ANY Rule method, consult docs/training/logic_bank_api.prompt for the ACTUAL API.
 
@@ -27,8 +128,25 @@ Rule.count() signature (from logic_bank_api.prompt):
 
 Rule.formula() signature (from logic_bank_api.prompt):
   Rule.formula(derive: Column, as_expression: Callable = None, calling: Callable = None, no_prune: bool = False)
-  - HAS 'calling' parameter for complex logic
-  - Use 'calling' when conditional logic needed (like deciding when to invoke AI)
+  - HAS 'calling' parameter for CALLABLE functions only
+  - calling must be a FUNCTION reference, NOT False/True boolean
+  - For conditional logic, use as_expression with IF/ELSE ternary
+  - For complex logic, use calling with a function that returns the value
+
+✅ CORRECT conditional formula:
+  Rule.formula(
+      derive=models.Item.unit_price,
+      as_expression=lambda row: (
+          row.product.unit_price if row.product.count_suppliers == 0
+          else row.unit_price  # Preserve AI-set value
+      )
+  )
+
+❌ WRONG: calling=False is invalid
+  Rule.formula(
+      derive=models.Item.unit_price,
+      calling=False  # ❌ TypeError: calling must be callable or omitted
+  )
 
 Rule.sum() signature (from logic_bank_api.prompt):
   Rule.sum(derive: Column, as_sum_of: any, where: any = None, insert_parent: bool=False)
@@ -38,6 +156,40 @@ Rule.sum() signature (from logic_bank_api.prompt):
 Always check logic_bank_api.prompt for correct syntax before generating rules!
 
 ---
+
+CRITICAL: Event Handler Signature - logic_row is a PARAMETER
+
+Event handlers (early_row_event, commit_row_event) automatically receive logic_row as a parameter.
+
+❌ WRONG: Trying to "get" logic_row
+```python
+def my_handler(row: models.Item):
+    logic_row = LogicRow.get_logic_row(row)  # ❌ This method does NOT exist!
+```
+
+✅ RIGHT: Receive logic_row as parameter
+```python
+def my_handler(row: models.Item, old_row: models.Item, logic_row: LogicRow):
+    # logic_row is automatically passed by LogicBank
+    logic_row.log("Processing item")
+    new_row = logic_row.new_logic_row(models.SysSupplierReq)
+```
+
+Event handler signature MUST be:
+```python
+def handler_name(row: ModelClass, old_row: ModelClass, logic_row: LogicRow):
+    # All three parameters are automatically provided by LogicBank
+    pass
+
+# Register with lambda to pass parameters:
+Rule.early_row_event(
+    on_class=models.Item,
+    calling=lambda row, old_row, logic_row: handler_name(row, old_row, logic_row)
+)
+
+# Or register directly (LogicBank passes all three):
+Rule.early_row_event(on_class=models.Item, calling=handler_name)
+```
 
 CRITICAL: Logging Pattern
 
@@ -68,6 +220,33 @@ def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row:
 ```
 
 Only use app_logger for non-rule system messages (startup, configuration, errors outside rule execution).
+
+=============================================================================
+REQUIRED PATTERN: Type Handling for Database Fields
+=============================================================================
+
+The compute_ai_value() utility automatically handles type conversion, but understand these rules:
+
+✅ Foreign Key (ID) fields:
+- MUST be Python int type for SQLite
+- AI returns numeric values as correct type
+- chosen_supplier_id, chosen_product_id, etc. → int
+
+✅ Monetary fields:
+- Should be Decimal type for precision
+- unit_price, unit_cost, amount, total → Decimal
+- Utility converts: Decimal(str(value))
+
+✅ The compute_ai_value() utility does this automatically:
+```python
+if '_id' in field_name or field_name.endswith('_id'):
+    value = int(value)  # Foreign keys as int
+elif '_price' in field_name or '_cost' in field_name or '_amount' in field_name:
+    value = Decimal(str(value))  # Monetary as Decimal
+```
+
+You don't need to do manual type conversion when using compute_ai_value().
+The utility introspects column types and converts appropriately.
 
 ---
 

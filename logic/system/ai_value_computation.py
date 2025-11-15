@@ -388,9 +388,13 @@ def _map_result_fields(
             value = chosen[target_field.replace('_cost', '_price')]
         
         if value is not None:
-            # Convert to Decimal if numeric
+            # Convert to Decimal for price/cost fields, keep integers as integers for ID fields
             if isinstance(value, (int, float)):
-                value = Decimal(str(value))
+                if '_id' in result_col or result_col.endswith('_id'):
+                    value = int(value)  # Keep ID fields as integers
+                elif '_price' in result_col or '_cost' in result_col or '_amount' in result_col:
+                    value = Decimal(str(value))  # Convert monetary fields to Decimal
+                # else: keep as-is for other numeric fields
             setattr(row, result_col, value)
             logic_row.log(f"Set {result_col} = {value}")
         else:

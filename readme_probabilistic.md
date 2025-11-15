@@ -31,7 +31,38 @@ changelog:
 - ✅ Credit limit constraint properly rejected over-limit transaction
 - ✅ Complete audit trail with AI reasoning logged
 
-**Critical Fixes Required During Generation:**
+**Errors Fixed & Training Documentation Updated (v1.4):**
+
+All errors encountered during implementation have been fixed AND the training documentation has been updated with **explicit positive patterns** to prevent recurrence:
+
+1. **Formula calling=False error** - Rule.formula() tried to use calling=False (invalid)
+   - ❌ Error: "Formula requires one of as_exp, as_expression or calling"
+   - ✅ Fix: Removed calling parameter entirely, used as_expression with ternary
+   - 📚 Training: Added section showing correct conditional formula pattern
+   
+2. **new_logic_row pattern error** - Passed instance instead of class
+   - ❌ Error: "'SysSupplierReq' object is not callable"
+   - ✅ Fix: Changed `new_logic_row(supplier_req)` → `new_logic_row(models.SysSupplierReq)`
+   - 📚 Training: Added "REQUIRED PATTERN: Request Pattern with new_logic_row" section
+   
+3. **Missing value assignment** - AI set chosen_unit_price but didn't copy to Item.unit_price
+   - ❌ Error: "unsupported operand type(s) for *: 'int' and 'NoneType'"
+   - ✅ Fix: Added explicit `item_row.unit_price = supplier_req.chosen_unit_price`
+   - 📚 Training: Added "REQUIRED PATTERN: Value Assignment After AI" section
+   
+4. **Type conversion for foreign keys** - Decimal type used for ID fields
+   - ❌ Error: "type 'decimal.Decimal' is not supported" for SQLite INTEGER FK
+   - ✅ Fix: Keep ID fields as int, only prices/costs as Decimal
+   - 📚 Training: Added "REQUIRED PATTERN: Type Handling for Database Fields" section
+
+**Key Documentation Philosophy Applied:**
+- ✅ **Be explicit about what TO DO** (show correct patterns first)
+- ✅ **Show complete working examples** (not fragments)
+- ✅ **Use visual markers** (✅ CORRECT, ❌ WRONG) for clarity
+- ✅ **Explain WHY patterns work** (not just error recovery)
+- ✅ **Place patterns BEFORE the sections that use them**
+
+**Earlier Fixes (v1.2-1.3):**
 1. **Rule.count() syntax error** - Incorrectly assumed 'calling' parameter (only Rule.formula() has it)
    - Fix: Updated training doc v1.2 with CRITICAL section on Rule API signatures
 2. **YAML test context** - Changed from config.py to separate config/ai_test_context.yaml
@@ -64,6 +95,20 @@ changelog:
 **Starting Point:** Existing system with Customer, Order, Item, Product, Supplier, ProductSupplier tables.
 
 **User gives Copilot this complete prompt:**
+```text
+I have an existing order management system. Please implement Check Credit logic 
+using LogicBank declarative rules in logic/logic_discovery/check_credit.py:
+
+1. Constraint: Customer balance must not exceed credit_limit
+2. Customer balance is sum of unshipped Order amount_total
+3. Order amount_total is sum of Item amounts
+4. Item amount is quantity * unit_price
+5. Item unit_price: 
+   - IF Product has suppliers (Product.count_suppliers > 0), 
+     use AI to select optimal supplier based on cost, lead time, and world conditions
+   - ELSE copy from Product.unit_price
+```
+
 
 ```text
 I have an existing order management system. Please implement Check Credit logic 
