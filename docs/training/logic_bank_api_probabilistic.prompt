@@ -73,155 +73,20 @@ def ItemUnitPriceFromSupplier(item_row: models.Item, logic_row: LogicRow):
     # CRITICAL: Copy AI result to target row
     item_row.unit_price = supplier_req.chosen_unit_price
 
-Key points:
+CRITICAL - Must copy AI result to target row:
 ✅ Pass CLASS to new_logic_row: new_logic_row(models.SysSupplierReq)
 ✅ Get instance from .row property: supplier_req = supplier_req_logic_row.row
 ✅ Insert using logic_row: supplier_req_logic_row.insert()
-✅ Copy AI result to target: item_row.unit_price = supplier_req.chosen_unit_price
+✅ **Copy AI result to target: item_row.unit_price = supplier_req.chosen_unit_price**
+
+Why: AI populates request table (SysSupplierReq.chosen_unit_price), but target table 
+(Item.unit_price) is separate. No automatic propagation - event handler MUST copy explicitly.
 
 # For Request Pattern details, see docs/training/logic_bank_patterns.prompt PATTERN 3
 
-=============================================================================
-REQUIRED PATTERN: Value Assignment After AI
-=============================================================================
-
-After AI completes and populates the request table, you MUST copy the result to the target row:
-
-# ✅ CORRECT: Explicit value assignment
-def event_handler(item_row: models.Item, logic_row: LogicRow):
-    supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
-    supplier_req = supplier_req_logic_row.row
-    
-    # Set up request
-    supplier_req.item_id = item_row.id
-    supplier_req.product_id = item_row.product_id
-    
-    # Insert triggers AI (AI sets chosen_supplier_id and chosen_unit_price)
-    supplier_req_logic_row.insert(reason="AI selection")
-    
-    # CRITICAL: Copy AI result to target row
-    item_row.unit_price = supplier_req.chosen_unit_price
-    logic_row.log(f"Set Item.unit_price = {item_row.unit_price} from AI")
-
-# ❌ WRONG: Assuming value propagates automatically
-# Item.unit_price stays None, causing formula errors downstream
-
-Why explicit assignment is required:
-- AI populates request table (SysSupplierReq.chosen_unit_price)
-- Target table (Item.unit_price) is separate
-- No automatic propagation between tables
-- Event handler MUST copy the value explicitly
-
-=============================================================================
-CRITICAL: Actual Rule API Syntax
-=============================================================================
-
-Before using ANY Rule method, consult docs/training/logic_bank_api.prompt for the ACTUAL API.
-
-Common mistakes when generating probabilistic + deterministic rules:
-
-❌ WRONG: Rule.count(derive=Product.count_suppliers, as_count_of=ProductSupplier, calling=lambda...)
-✅ RIGHT: Rule.count(derive=Product.count_suppliers, as_count_of=ProductSupplier)
-
-Rule.count() signature (from logic_bank_api.prompt):
-  Rule.count(derive: Column, as_count_of: object, where: any = None, insert_parent: bool=False)
-  - NO 'calling' parameter
-  - Use 'where' for filtering, not 'calling'
-
-Rule.formula() signature (from logic_bank_api.prompt):
-  Rule.formula(derive: Column, as_expression: Callable = None, calling: Callable = None, no_prune: bool = False)
-  - HAS 'calling' parameter for CALLABLE functions only
-  - calling must be a FUNCTION reference, NOT False/True boolean
-  - For conditional logic, use as_expression with IF/ELSE ternary
-  - For complex logic, use calling with a function that returns the value
-
-✅ CORRECT conditional formula:
-  Rule.formula(
-      derive=models.Item.unit_price,
-      as_expression=lambda row: (
-          row.product.unit_price if row.product.count_suppliers == 0
-          else row.unit_price  # Preserve AI-set value
-      )
-  )
-
-❌ WRONG: calling=False is invalid
-  Rule.formula(
-      derive=models.Item.unit_price,
-      calling=False  # ❌ TypeError: calling must be callable or omitted
-  )
-
-Rule.sum() signature (from logic_bank_api.prompt):
-  Rule.sum(derive: Column, as_sum_of: any, where: any = None, insert_parent: bool=False)
-  - NO 'calling' parameter
-  - Use 'where' for filtering
-
-Always check logic_bank_api.prompt for correct syntax before generating rules!
-
----
-
-CRITICAL: Event Handler Signature - logic_row is a PARAMETER
-
-Event handlers (early_row_event, commit_row_event) automatically receive logic_row as a parameter.
-
-❌ WRONG: Trying to "get" logic_row
-```python
-def my_handler(row: models.Item):
-    logic_row = LogicRow.get_logic_row(row)  # ❌ This method does NOT exist!
-```
-
-✅ RIGHT: Receive logic_row as parameter
-```python
-def my_handler(row: models.Item, old_row: models.Item, logic_row: LogicRow):
-    # logic_row is automatically passed by LogicBank
-    logic_row.log("Processing item")
-    new_row = logic_row.new_logic_row(models.SysSupplierReq)
-```
-
-Event handler signature MUST be:
-```python
-def handler_name(row: ModelClass, old_row: ModelClass, logic_row: LogicRow):
-    # All three parameters are automatically provided by LogicBank
-    pass
-
-# Register with lambda to pass parameters:
-Rule.early_row_event(
-    on_class=models.Item,
-    calling=lambda row, old_row, logic_row: handler_name(row, old_row, logic_row)
-)
-
-# Or register directly (LogicBank passes all three):
-Rule.early_row_event(on_class=models.Item, calling=handler_name)
-```
-
-CRITICAL: Logging Pattern
-
-ALWAYS use logic_row.log() instead of app_logger for rule execution logging:
-
-❌ WRONG: app_logger.info(f"Item {row.id} - Product has {row.product.count_suppliers} suppliers")
-✅ RIGHT: logic_row.log(f"Item - Product has {row.product.count_suppliers} suppliers")
-
-Benefits of logic_row.log():
-- Automatic indentation showing rule cascade depth
-- Grouped with related logic execution
-- Visible in logic trace output
-- No need to import logging module
-
-Example:
-```python
-def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row: LogicRow):
-    if row.product is None:
-        logic_row.log("Item - No product assigned, unit_price = 0")
-        return Decimal('0')
-    
-    if row.product.count_suppliers == 0:
-        logic_row.log("Item - Product has no suppliers, using product.unit_price")
-        return row.product.unit_price
-    
-    logic_row.log(f"Item - Product has {row.product.count_suppliers} suppliers, invoking AI")
-    # ... AI logic
-```
-
-Only use app_logger for non-rule system messages (startup, configuration, errors outside rule execution).
+# For Rule API syntax, see docs/training/logic_bank_patterns.prompt PATTERN 4
+# For Event handler signatures, see docs/training/logic_bank_patterns.prompt PATTERN 1
+# For Logging patterns, see docs/training/logic_bank_patterns.prompt PATTERN 2
 
 =============================================================================
 AI-SPECIFIC: compute_ai_value() Type Handling
