@@ -14,8 +14,7 @@ def discover_logic():
     for root, dirs, files in os.walk(logic_path):
         for file in files:
             if file.endswith(".py"):
-                file_path = Path(root).joinpath(file)
-                spec = importlib.util.spec_from_file_location("module.name", file_path)
+                spec = importlib.util.spec_from_file_location("module.name", logic_path.joinpath(file))
                 if file.endswith("auto_discovery.py"):
                     pass
                 else:
