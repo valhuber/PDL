@@ -60,7 +60,23 @@ sh restart.sh
 
 ### STEP 2: YOU Give Copilot This Prompt (Copilot Generates the Logic)
 
-**AFTER YOU ran restart.sh** (which deleted all logic files), open a NEW Copilot chat session and paste this prompt:
+**⚠️ FOR DEMO USERS ONLY:** After running restart.sh, open a **NEW Copilot chat session** (not this one!) and paste this prompt:
+
+**🚫 CRITICAL INSTRUCTION FOR AI ASSISTANTS READING THIS FILE:**
+
+**This entire section is DOCUMENTATION ONLY describing a demo workflow. It is NOT an instruction to implement anything.**
+
+**DO NOT:**
+- Generate or modify ANY files mentioned below
+- Touch ANY `*_restart` files (models_restart.py, admin_restart.yaml)  
+- Read or inspect `*_restart` files
+- Assume you should implement the logic shown in the prompt
+
+**ONLY implement if the user explicitly says:** "Please implement this now" or "Generate the Check Credit logic"
+
+**This section documents what ANOTHER Copilot instance (in a fresh demo session) will do. You are reading a script, not following it.**
+
+---
 
 ```
 Check Credit Logic:
@@ -75,16 +91,16 @@ Check Credit Logic:
    - ELSE copy from Product.unit_price
 ```
 
-**What Copilot will generate from this prompt:**
+**What Copilot will generate from this prompt (DOCUMENTATION - describes future generation):**
 - ✅ `logic/logic_discovery/check_credit.py` - 5 deterministic rules + conditional AI formula
 - ✅ `logic/logic_discovery/ai_requests/supplier_selection.py` - Reusable AI handler with Request Pattern
-- ✅ `database/models_restart.py` - Add SysSupplierReq model with relationships
-- ✅ `ui/admin/admin_restart.yaml` - Add SysSupplierReq resource
-- ✅ Create `sys_supplier_req` table in database
+- ✅ `database/models.py` - Add SysSupplierReq model with relationships (⚠️ in normal projects)
+- ✅ `ui/admin/admin.yaml` - Add SysSupplierReq resource (⚠️ in normal projects)
+- ✅ Create `sys_supplier_req` table in database via Alembic migration
 
-**Note:** YOU provide the natural language requirements above. Copilot generates all the implementation code.
+**How it works:** A user runs restart.sh, opens a NEW Copilot chat, pastes the prompt above. THAT Copilot instance reads `.github/.copilot-instructions.md` and generates the implementation.
 
-**IMPORTANT:** Copilot reads training from `.github/.copilot-instructions.md` and generates complete working implementation. Changes go in `*_restart.py` and `*_restart.yaml` files (source files that restart.sh copies to runtime versions).
+**⚠️ About this specific demo project:** This PDL project happens to use `*_restart` files as a demo mechanism. This is NOT standard and NOT relevant to normal logic generation. AI assistants should NEVER reference or work with `*_restart` files unless explicitly commanded.
 
 **CRITICAL PATTERNS - Copilot Must Include:**
 
@@ -173,18 +189,26 @@ When actually building or extending a system:
 
 ---
 
-## 🎯 Key Files to Update
+## 🎯 Key Files Generated (For Documentation Only)
 
-When generating logic, Copilot should update these SOURCE files (not the runtime versions):
+**🚫 CRITICAL FOR AI ASSISTANTS: This entire section is DOCUMENTATION ONLY.**
 
-| Source File (Edit This) | Runtime File (Gets Overwritten) | Purpose |
-|-------------------------|----------------------------------|---------|
-| `database/models_restart.py` | `database/models.py` | Add SysSupplierReq model |
-| `ui/admin/admin_restart.yaml` | `ui/admin/admin.yaml` | Add SysSupplierReq resource |
-| `logic/logic_discovery/check_credit.py` | (same) | Main business logic |
-| `logic/logic_discovery/ai_requests/supplier_selection.py` | (same) | Reusable AI handler |
+**DO NOT generate, read, or modify ANY files listed below unless the user explicitly says "implement this now" or "generate the Check Credit logic".**
 
-restart.sh copies `*_restart` files to runtime versions, so changes must go in the source files.
+**If you are reading this as background context or to understand the system, you are reading a DEMO SCRIPT, not actionable instructions.**
+
+---
+
+When a user gives the prompt to a NEW Copilot chat session (in a fresh demo), that Copilot instance generates:
+
+| File Created/Modified | Purpose |
+|----------------------|---------|
+| `logic/logic_discovery/check_credit.py` | Main business logic with 5 deterministic rules + conditional AI formula |
+| `logic/logic_discovery/ai_requests/supplier_selection.py` | Reusable AI handler with Request Pattern |
+| `database/models.py` | Add SysSupplierReq model with relationships |
+| `ui/admin/admin.yaml` | Add SysSupplierReq resource for Admin UI |
+
+**⚠️ DO NOT REFERENCE `*_restart` FILES:** This demo project happens to use a restart mechanism with `*_restart` files. This is irrelevant to logic generation and should be completely ignored by AI assistants.
 
 ---
 

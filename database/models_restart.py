@@ -169,4 +169,29 @@ class Item(Base):  # type: ignore
 
 
 
+class SysSupplierReq(Base):  # type: ignore
+    """
+    description: AI supplier selection audit trail - stores request, AI reasoning, and chosen supplier
+    """
+    __tablename__ = 'sys_supplier_req'
+    _s_collection_name = 'SysSupplierReq'  # type: ignore
+
+    id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, ForeignKey('item.id'))
+    product_id = Column(Integer, ForeignKey('product.id'))
+    request = Column(String(2000))
+    chosen_supplier_id = Column(Integer, ForeignKey('supplier.id'))
+    chosen_unit_price : DECIMAL = Column(DECIMAL)
+    reason = Column(String(500))
+    created_on = Column(DateTime, default=datetime.datetime.utcnow)
+
+    # parent relationships (access parent)
+    item : Mapped["Item"] = relationship(foreign_keys=[item_id])
+    product : Mapped["Product"] = relationship(foreign_keys=[product_id])
+    supplier : Mapped["Supplier"] = relationship(foreign_keys=[chosen_supplier_id])
+
+    # child relationships (access children)
+
+
+
 
