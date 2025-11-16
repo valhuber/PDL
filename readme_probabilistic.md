@@ -40,8 +40,8 @@ sh restart.sh
 ```
 
 **What `restart.sh` does:**
-- ❌ Deletes database and recreates from `database/basic_demo.sql`
-- ❌ Resets `models.py` and `admin.yaml` from `*_restart` versions
+- ❌ Deletes database and recreates it clean
+- ❌ Resets `models.py` and `admin.yaml` to baseline state
 - ❌ **DELETES ALL FILES in `logic/logic_discovery/`** (except auto_discovery.py)
 
 **Only run this when:**
@@ -68,8 +68,6 @@ sh restart.sh
 
 **DO NOT:**
 - Generate or modify ANY files mentioned below
-- Touch ANY `*_restart` files (models_restart.py, admin_restart.yaml)  
-- Read or inspect `*_restart` files
 - Assume you should implement the logic shown in the prompt
 
 **ONLY implement if the user explicitly says:** "Please implement this now" or "Generate the Check Credit logic"
@@ -98,9 +96,7 @@ Check Credit Logic:
 - ✅ `ui/admin/admin.yaml` - Add SysSupplierReq resource (⚠️ in normal projects)
 - ✅ Create `sys_supplier_req` table in database via Alembic migration
 
-**How it works:** A user runs restart.sh, opens a NEW Copilot chat, pastes the prompt above. THAT Copilot instance reads `.github/.copilot-instructions.md` and generates the implementation.
-
-**⚠️ About this specific demo project:** This PDL project happens to use `*_restart` files as a demo mechanism. This is NOT standard and NOT relevant to normal logic generation. AI assistants should NEVER reference or work with `*_restart` files unless explicitly commanded.
+**How it works:** A user runs restart.sh, opens a NEW Copilot chat, pastes the prompt above. THAT Copilot instance reads `.github/.copilot-instructions.md` and the training files in `docs/training/` to generate the implementation.
 
 **CRITICAL PATTERNS - Copilot Must Include:**
 
@@ -132,11 +128,13 @@ Check Credit Logic:
 ### STEP 3: Start Server and Test
 
 ```bash
-# Terminal 1: Start server (in PDL directory)
-python api_logic_server_run.py
+# Start server in background (so curl commands work in same terminal)
+python api_logic_server_run.py > /tmp/server.log 2>&1 &
 
-# Terminal 2: Wait for server to start, then run curl command
-# (Open a NEW terminal - don't run in same terminal as server!)
+# Wait for server to start (about 5 seconds)
+sleep 5
+
+# Test: Create item with product that has suppliers (triggers AI selection)
 curl -X POST http://localhost:5656/api/Item \
   -H "Content-Type: application/vnd.api+json" \
   -d '{
@@ -152,6 +150,9 @@ curl -X POST http://localhost:5656/api/Item \
 
 # Verify audit trail was created
 curl http://localhost:5656/api/SysSupplierReq
+
+# When done testing, stop the server:
+# pkill -f api_logic_server_run.py
 ```
 
 **Expected Result:**
@@ -181,9 +182,8 @@ When actually building or extending a system:
 
 1. **DO NOT run `restart.sh`** - It deletes your work!
 2. **Give prompt to Copilot** - It creates files in the existing project
-3. **Manually copy changes** from `models_restart.py` to `models.py` if needed
-4. **Run alembic migration** to update the database schema
-5. **Test** - Verify your changes work
+3. **Run alembic migration** if schema changes are needed
+4. **Test** - Verify your changes work
 
 **Key Difference:** In development, you keep your existing files and incrementally add to them.
 
@@ -207,8 +207,6 @@ When a user gives the prompt to a NEW Copilot chat session (in a fresh demo), th
 | `logic/logic_discovery/ai_requests/supplier_selection.py` | Reusable AI handler with Request Pattern |
 | `database/models.py` | Add SysSupplierReq model with relationships |
 | `ui/admin/admin.yaml` | Add SysSupplierReq resource for Admin UI |
-
-**⚠️ DO NOT REFERENCE `*_restart` FILES:** This demo project happens to use a restart mechanism with `*_restart` files. This is irrelevant to logic generation and should be completely ignored by AI assistants.
 
 ---
 

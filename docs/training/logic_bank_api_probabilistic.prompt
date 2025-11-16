@@ -50,34 +50,72 @@ create complete AI value computation infrastructure:
    - "IF [condition] THEN use AI to [select/compute]..."
 
 ✅ What to Generate AUTOMATICALLY (complete working implementation):
-   1. Check if SysXxxReq model exists in database/models.py
-   2. If NOT exists:
-      a. Add SysXxxReq model to database/models.py
+   1. **CRITICAL**: Check if sys_xxx_req table exists in DATABASE (not just models.py)
+      - Run: sqlite3 database/db.sqlite ".tables" | grep -i sys_xxx_req
+      - If table missing → MUST generate and run Alembic migration
+      - ❌ WRONG: Assuming table exists because model is in models.py
+      - ✅ CORRECT: Verify actual database table existence
+   
+   2. If table does NOT exist in database:
+      a. Verify SysXxxReq model exists in database/models.py (add if missing)
       b. Add relationships to parent models (bidirectional)
-      c. Generate Alembic migration file
-      d. Instruct user to run migration: cd database && alembic upgrade head
-   3. Logic files with conditional formula + event handler
-   4. AI request handler using compute_ai_value() utility
-   5. Update ui/admin/admin.yaml with SysXxxReq resource
+      c. **MANDATORY**: Tell user to run Alembic migration commands:
+         ```
+         cd database
+         alembic revision --autogenerate -m "Add SysXxxReq audit table"
+         alembic upgrade head
+         ```
+      d. **DO NOT proceed** with logic generation until user confirms migration ran
+   
+   3. After database table confirmed:
+      a. Logic files with conditional formula + event handler
+      b. AI request handler using compute_ai_value() utility
+      c. Update ui/admin/admin.yaml with SysXxxReq resource
 
 ✅ Example User Prompt:
    "Item unit_price: IF Product has suppliers, use AI to select optimal 
     supplier based on cost and lead time, ELSE copy from Product.unit_price"
 
-✅ You Should Automatically Generate:
-   - Check if SysSupplierReq exists in database/models.py
-   - If not, add SysSupplierReq model (chosen_supplier_id, chosen_unit_price, reason, etc.)
-   - If not, generate migration file
+✅ You MUST Follow This Sequence:
+
+STEP 1 - DATABASE VERIFICATION (MANDATORY):
+   ```bash
+   sqlite3 database/db.sqlite ".tables" | grep -i sys_supplier_req
+   ```
+   - If no output → Table missing, need migration
+   - If output shows table → Proceed to STEP 3
+
+STEP 2 - MIGRATION REQUIRED (if table missing):
+   ⚠️ **STOP AND TELL USER**:
+   ```
+   CRITICAL: SysSupplierReq table does not exist in database.
+   
+   I cannot run Alembic migrations because:
+   - Virtual environment location varies per system
+   - I don't have access to run migration commands
+   
+   YOU must run these commands:
+   
+   cd database
+   alembic revision --autogenerate -m "Add SysSupplierReq audit table"
+   alembic upgrade head
+   
+   Then confirm migration succeeded before I continue generating logic.
+   ```
+   
+   ❌ DO NOT attempt to run alembic commands (venv access issues)
+   ❌ DO NOT generate logic files until user confirms migration ran
+   ❌ DO NOT assume table exists because model is in models.py
+   ✅ DO provide clear migration commands for user to execute
+
+STEP 3 - GENERATE LOGIC (only after table exists):
    - Conditional formula on Item.unit_price
    - Early event handler that creates SysSupplierReq
    - AI handler that calls compute_ai_value()
    - Copies AI result back to Item.unit_price
+   - Update ui/admin/admin.yaml
 
-USER ACTION REQUIRED: If new model was created, user must run:
-   cd database && alembic revision --autogenerate -m "Add SysSupplierReq"
-   cd database && alembic upgrade head
-
-This is GENERIC - works for ANY project structure.
+This verification is MANDATORY - works for ANY project structure.
 
 =============================================================================
 REQUIRED PATTERN: Conditional Formula with AI

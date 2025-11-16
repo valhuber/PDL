@@ -255,6 +255,47 @@ resources:
       resource: ProductSupplier
     type: Supplier
     user_key: name
+  SysSupplierReq:
+    attributes:
+    - label: ' id*'
+      name: id
+      search: true
+      sort: true
+    - name: item_id
+      type: number
+    - name: product_id
+      type: number
+    - name: request
+      type: textarea
+    - name: chosen_supplier_id
+      type: number
+    - name: chosen_unit_price
+      type: DECIMAL
+    - name: reason
+      type: textarea
+    - name: created_on
+      type: DateTime
+    description: AI supplier selection audit trail - stores request, AI reasoning,
+      and chosen supplier
+    info_list: AI supplier selection audit trail with reasoning and decisions
+    tab_groups:
+    - direction: toone
+      fks:
+      - item_id
+      name: item
+      resource: Item
+    - direction: toone
+      fks:
+      - product_id
+      name: product
+      resource: Product
+    - direction: toone
+      fks:
+      - chosen_supplier_id
+      name: supplier
+      resource: Supplier
+    type: SysSupplierReq
+    user_key: id
 settings:
   HomeJS: /admin-app/home.js
   max_list_columns: 8
