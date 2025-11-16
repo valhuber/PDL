@@ -38,22 +38,6 @@ This directory contains training materials for ApiLogicServer with GenAI integra
 
 ---
 
-### PDL Project-Specific Guide
-**File:** `pdl_project_guide.md`  
-**Scope:** PDL demo application workflows and troubleshooting  
-**Topics:**
-- restart.sh workflow and purpose
-- Complete workflow after restart
-- Step-by-step setup instructions
-- PDL-specific file locations
-- Common issues and solutions
-- Testing checklist
-- Quick command reference
-
-**Use this when:** Working on the PDL demo project specifically.
-
----
-
 ### Code Templates
 **File:** `template_probabilistic_rules.py`  
 **Scope:** Working code examples for copy/paste  
@@ -68,26 +52,15 @@ This directory contains training materials for ApiLogicServer with GenAI integra
 
 ---
 
-## Deprecated Files
-
-**File:** `common_errors_probabilistic_rules.md`  
-**Status:** Deprecated - content migrated to organized guides above  
-**Kept for:** Backward compatibility  
-**Will be removed:** Future cleanup
-
----
-
 ## Quick Navigation
 
 **I want to...**
 
 - **Understand LogicBank + AI patterns** → `genai_logic_patterns.md`
 - **Implement AI rules in my project** → `probabilistic_logic_guide.md`
-- **Work on PDL demo project** → `pdl_project_guide.md`
 - **Copy working code** → `template_probabilistic_rules.py`
 - **Fix import errors** → `genai_logic_patterns.md` (Section 1)
 - **Fix "Session is already flushing"** → `genai_logic_patterns.md` (Section 2)
-- **Understand restart.sh** → `pdl_project_guide.md` (Section 2)
 - **Add audit trails** → `probabilistic_logic_guide.md` (Section 2)
 - **Test AI rules** → `probabilistic_logic_guide.md` (Section 4)
 
@@ -130,7 +103,7 @@ When adding new training materials:
 1. **Choose the right file:**
    - Universal patterns → `genai_logic_patterns.md`
    - Implementation patterns → `probabilistic_logic_guide.md`
-   - Project-specific → `pdl_project_guide.md`
+   - Project-specific → Keep outside `docs/training/` folder
 
 2. **Keep separation clear:**
    - Don't mix framework patterns with project specifics

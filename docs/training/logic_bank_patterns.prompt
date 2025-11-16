@@ -1,7 +1,7 @@
 ---
 title: LogicBank Patterns - The Hitchhiker's Guide
 description: General patterns for working with LogicBank rules (deterministic and probabilistic)
-source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_patterns.prompt
+source: Generic training for ApiLogicServer projects with GenAI integration
 usage: AI assistants read this for general LogicBank patterns across ALL rule types
 version: 1.0
 date: Nov 14, 2025

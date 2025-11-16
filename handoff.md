@@ -26,7 +26,7 @@
 
 **What User Asks:**
 ```
-Please generate the probabilistic logic for supplier selection based on docs/training/pdl_project_guide.md:
+Please generate the probabilistic logic for supplier selection based on readme_probabilistic.md:
 - Create logic/logic_discovery/check_credit.py
 - Create logic/logic_discovery/ai_requests/supplier_selection.py
 - Add SysSupplierReq model to database/models_restart.py
@@ -39,8 +39,11 @@ Please generate the probabilistic logic for supplier selection based on docs/tra
 **NEVER Mix These:**
 - ❌ Don't put PDL-specific details in `.copilot-instructions.md`
 - ❌ Don't reference conversation history in new sessions
-- ✅ Generic training → `docs/training/*.prompt` files
-- ✅ PDL specifics → `readme_probabilistic.md` and `pdl_project_guide.md`
+- ❌ **NEVER put project-specific files in `docs/training/`** - that folder is for GENERIC reusable training only
+- ✅ Generic training → `docs/training/*.prompt` files (reusable across ALL projects)
+- ✅ PDL specifics → `readme_probabilistic.md` (this project only)
+
+**Critical Rule:** The `docs/training/` folder contains ONLY generic, reusable training documentation that applies to ALL GenAI-Logic projects. Project-specific files (like `pdl_project_guide.md`) must live in `docs/` NOT in `docs/training/`.
 
 ---
 
@@ -131,8 +134,7 @@ Source (EDIT THESE):              Runtime (OVERWRITTEN):
 5. **`docs/training/template_probabilistic_rules.py`** - Working code reference (230 lines)
 
 ### PDL-Specific (This Project Only)
-1. **`readme_probabilistic.md`** - Quick Start with 3-step workflow
-2. **`docs/training/pdl_project_guide.md`** - PDL patterns and troubleshooting (601 lines)
+1. **`readme_probabilistic.md`** - Complete PDL guide: Quick Start, patterns, troubleshooting
 3. **`docs/training/common_errors_probabilistic_rules.md`** - Gotchas checklist
 4. **`docs/training/probabilistic_logic_guide.md`** - Deep dive on patterns
 5. **`docs/training/genai_logic_patterns.md`** - Universal framework patterns

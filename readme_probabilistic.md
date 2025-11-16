@@ -4,10 +4,11 @@ notes: Describes how to use Rule.ai_decision() via natural language with Copilot
 target: Complete working system from single prompt via 'als genai create'
 source: docs/training/logic_bank_api_probabilistic.prompt (the Rosetta Stone for PR)
 related: readme_ai_mcp.md, README.md, docs/training/logic_bank_api.prompt
-version: 1.6
+version: 1.7
 date: Nov 15, 2025
 status: ✅ PHASE 1 COMPLETE - Refactored architecture with ai_requests/
 changelog:
+  - 1.7 (Nov 15, 2025) - Clarified 3-step demo workflow with complete prompt at top
   - 1.6 (Nov 15, 2025) - Architecture refactor: ai_requests/ folder, formula pattern, AI as value computation
   - 1.5 (Nov 14, 2025) - Refactored to introspection-based pattern: 233 lines → 60 lines (75% reduction)
   - 1.4 (Nov 14, 2025) - PHASE 1 COMPLETE: Generated working implementation from natural language, tested successfully
@@ -19,42 +20,81 @@ changelog:
 
 # Probabilistic Rules: Natural Language → AI Value Computation
 
-## 🚀 Quick Start - Complete Workflow
+## 🚀 Demo Workflow - 3 Simple Steps
 
-### For New Users: 3 Simple Steps
+**This is a demonstration of generating probabilistic + deterministic logic from natural language.**
 
-**STEP 1: Reset to Clean Database (Vanilla Customer DB)**
+### STEP 1: Reset to Clean Database
 ```bash
-cd /path/to/PDL
+cd /Users/val/dev/ApiLogicServer/ApiLogicServer-dev/org_git/PDL
 sh restart.sh x
 ```
 
-This creates a BRAND NEW database from scratch (simulates existing customer database with no logic).
+This creates a BRAND NEW database from scratch (simulates existing customer database with NO logic files).
 
-**STEP 2: Generate Logic via Copilot (NEW Chat Session)**
+---
 
-**IMPORTANT:** Open a **NEW Copilot chat session** (to simulate a cold start without conversation history).
+### STEP 2: Give Copilot This Prompt
 
-Copilot will automatically read `.github/.copilot-instructions.md` and the training files in `docs/training/`. 
+**Open a NEW Copilot chat session** (to simulate cold start), then paste:
 
-Ask Copilot:
 ```
-Please generate the probabilistic logic for supplier selection based on docs/training/pdl_project_guide.md:
-- Create logic/logic_discovery/check_credit.py with deterministic + conditional AI formula
-- Create logic/logic_discovery/ai_requests/supplier_selection.py with Request Pattern
-- Add SysSupplierReq model to database/models_restart.py with relationships
-- Update ui/admin/admin_restart.yaml with SysSupplierReq resource
-- Create sys_supplier_req table in database
+Check Credit Logic:
+
+1. Constraint: Customer balance must not exceed credit_limit
+2. Customer balance is sum of unshipped Order amount_total
+3. Order amount_total is sum of Item amounts
+4. Item amount is quantity * unit_price
+5. Item unit_price: 
+   - IF Product has suppliers (Product.count_suppliers > 0), 
+     use AI to select optimal supplier based on cost, lead time, and world conditions
+   - ELSE copy from Product.unit_price
 ```
 
-Copilot will create all necessary files using ONLY the training documentation (not any prior conversation). **Key Point:** Changes must go in `*_restart.py` and `*_restart.yaml` files (NOT the runtime versions - they get overwritten by restart.sh).
+**What Copilot will generate:**
+- ✅ `logic/logic_discovery/check_credit.py` - 5 deterministic rules + conditional AI formula
+- ✅ `logic/logic_discovery/ai_requests/supplier_selection.py` - Reusable AI handler with Request Pattern
+- ✅ `database/models_restart.py` - Add SysSupplierReq model with relationships
+- ✅ `ui/admin/admin_restart.yaml` - Add SysSupplierReq resource
+- ✅ Create `sys_supplier_req` table in database
 
-**STEP 3: Start Server and Test**
+**IMPORTANT:** Copilot reads training from `.github/.copilot-instructions.md` and generates complete working implementation. Changes go in `*_restart.py` and `*_restart.yaml` files (source files that restart.sh copies to runtime versions).
+
+**CRITICAL PATTERNS - Copilot Must Include:**
+
+1. **Value Assignment After AI** - After AI computation completes, MUST copy result to target row:
+   ```python
+   # In ItemUnitPriceFromSupplier event handler:
+   supplier_req_logic_row.insert(reason="AI supplier selection request")
+   
+   # CRITICAL: Copy AI result to target row
+   item_row.unit_price = supplier_req.chosen_unit_price
+   logic_row.log(f"Item - AI selected supplier, unit_price set to {item_row.unit_price}")
+   ```
+   ❌ **Without this**: target field remains None, formulas fail with "NoneType" errors
+   ✅ **With this**: AI value flows into deterministic rule cascade
+
+2. **Request Pattern with new_logic_row** - Pass CLASS not instance:
+   ```python
+   # ✅ CORRECT: Pass the class
+   supplier_req_logic_row = logic_row.new_logic_row(models.SysSupplierReq)
+   supplier_req = supplier_req_logic_row.row  # Get instance AFTER creation
+   
+   # ❌ WRONG: Don't pass an instance
+   supplier_req = models.SysSupplierReq()
+   supplier_req_logic_row = logic_row.new_logic_row(supplier_req)  # ERROR!
+   ```
+
+---
+
+### STEP 3: Start Server and Test
+
 ```bash
-# Start server
+# Terminal 1: Start server (in PDL directory)
 python api_logic_server_run.py
 
-# Test in another terminal - add Egyptian Cotton Sheets to order
+# Terminal 2: Wait for server to start, then run curl command
+# (Open a NEW terminal - don't run in same terminal as server!)
 curl -X POST http://localhost:5656/api/Item \
   -H "Content-Type: application/vnd.api+json" \
   -d '{
@@ -74,9 +114,10 @@ curl http://localhost:5656/api/SysSupplierReq
 
 **Expected Result:**
 - ✅ Item created with unit_price=105.0, amount=1050.0
-- ✅ SysSupplierReq audit record created
-- ✅ Supplier selected with reason: "Selected supplier 1 with lowest cost"
-- ✅ Full audit trail captured (supplier_id, unit_price, reason, timestamp)
+- ✅ AI selected supplier considering "Suez Canal blockage" (from config/ai_test_context.yaml)
+- ✅ SysSupplierReq audit record created with reason
+- ✅ Order total updated, Customer balance updated, credit check passes
+- ✅ Complete logic cascade: AI value → formulas → sums → constraint validation
 
 ---
 
@@ -113,13 +154,28 @@ restart.sh copies `*_restart` files to runtime versions, so changes must go in t
 - ✅ Credit check passes (balance ≤ credit_limit)
 - ✅ Audit trail in SysSupplierReq table (chosen_supplier_id, reason, request)
 
-**Check the logs:**
+**Check the logic log:**
 ```bash
-# Look for these messages:
-Logic Bank                 Item - Product has 2 suppliers, invoking AI
-Logic Bank                 get_supplier_price_from_ai - Product has 2 suppliers
-Logic Bank                 SysSupplierReq - AI selected supplier: NJ Supplier ($205.00)
-Logic Bank                 SysSupplierReq - Reason: NJ Supplier avoids Suez Canal disruption
+# Extract clean logic execution trace (ONE LINE per rule, hierarchical indentation)
+grep -A 100 "Logic Phase:.*ROW LOGIC" server.log | \
+  awk -F' row: ' '{print $1}' | \
+  grep -E "^\.\.|^Logic Phase:" | \
+  head -50
+```
+
+**Expected output:**
+```
+Logic Phase: ROW LOGIC
+..Item[None] {Insert - client} id: None, order_id: 1, product_id: 6, quantity: 10
+..Item[None] {Item - Product has 2 suppliers, invoking AI}
+....SysSupplierReq[None] {Insert - AI supplier selection request}
+....SysSupplierReq[None] {Test context loaded: ship aground in Suez Canal}
+....SysSupplierReq[None] {Calling OpenAI API for selection}
+....SysSupplierReq[None] {Set chosen_supplier_id = 2}
+....SysSupplierReq[None] {Set chosen_unit_price = 205.0}
+..Item[None] {Item - AI selected supplier, unit_price set to 205.0}
+..Item[None] {Formula amount} amount: [None-->2050.0]
+....Order[1] {Update - Adjusting order: amount_total} amount_total: [300.0-->2350.0]
 ```
 
 **Alternative: Test via Admin UI**
@@ -207,8 +263,7 @@ All errors encountered during implementation have been fixed AND the training do
 
 **User gives Copilot this complete prompt:**
 ```text
-I have an existing order management system. Please implement Check Credit logic 
-using LogicBank declarative rules in logic/logic_discovery/check_credit.py:
+Check Credit Logic:
 
 1. Constraint: Customer balance must not exceed credit_limit
 2. Customer balance is sum of unshipped Order amount_total

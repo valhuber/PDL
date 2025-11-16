@@ -1,7 +1,7 @@
 ---
 title: LogicBank Probabilistic Rules API (AI Value Computation)
 description: Training document for translating natural language into probabilistic value computation rules
-source: ApiLogicServer-src prototypes/PDL/docs/training/logic_bank_api_probabilistic.prompt
+source: Generic training for ApiLogicServer projects with probabilistic rules
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
 version: 1.5
 prerequisites:

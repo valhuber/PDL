@@ -66,7 +66,7 @@ class Customer(Base):  # type: ignore
 
 class Product(Base):  # type: ignore
     """
-    description: Represents a product with its own name and unit price.
+    description: Represents a product available in the system with a unit price.
     """
     __tablename__ = 'product'
     _s_collection_name = 'Product'  # type: ignore
@@ -81,7 +81,7 @@ class Product(Base):  # type: ignore
     # child relationships (access children)
     ItemList : Mapped[List["Item"]] = relationship(back_populates="product")
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="product")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.product_id]', back_populates="product")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="product")
 
 
 
@@ -103,7 +103,7 @@ class Supplier(Base):  # type: ignore
 
     # child relationships (access children)
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="supplier")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.chosen_supplier_id]', back_populates="supplier")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys="[SysSupplierReq.chosen_supplier_id]")
 
 
 
@@ -168,28 +168,29 @@ class Item(Base):  # type: ignore
     product : Mapped["Product"] = relationship(back_populates=("ItemList"))
 
     # child relationships (access children)
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.item_id]', back_populates="item")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
+
 
 
 class SysSupplierReq(Base):  # type: ignore
     """
-    description: Audit table for AI supplier selection requests and results.
+    description: Audit trail for AI-driven supplier selection decisions.
     """
     __tablename__ = 'sys_supplier_req'
     _s_collection_name = 'SysSupplierReq'  # type: ignore
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    item_id = Column(ForeignKey('item.id'), nullable=True)
-    product_id = Column(ForeignKey('product.id'), nullable=False)
+    id = Column(Integer, primary_key=True)
+    item_id = Column(ForeignKey('item.id'))
+    product_id = Column(ForeignKey('product.id'))
     chosen_supplier_id = Column(ForeignKey('supplier.id'))
     chosen_unit_price : DECIMAL = Column(DECIMAL)
-    request = Column(String)
-    reason = Column(String)
-    created_on = Column(DateTime, server_default='CURRENT_TIMESTAMP')
+    request = Column(String(2000))
+    reason = Column(String(500))
+    created_on = Column(DateTime, default=datetime.datetime.utcnow)
 
     # parent relationships (access parent)
-    item : Mapped["Item"] = relationship(foreign_keys=[item_id], back_populates="SysSupplierReqList")
-    product : Mapped["Product"] = relationship(foreign_keys=[product_id], back_populates="SysSupplierReqList")
-    supplier : Mapped["Supplier"] = relationship(foreign_keys=[chosen_supplier_id], back_populates="SysSupplierReqList")
+    item : Mapped["Item"] = relationship(back_populates=("SysSupplierReqList"))
+    product : Mapped["Product"] = relationship(back_populates=("SysSupplierReqList"))
+    chosen_supplier : Mapped["Supplier"] = relationship(foreign_keys=[chosen_supplier_id])
 
     # child relationships (access children)

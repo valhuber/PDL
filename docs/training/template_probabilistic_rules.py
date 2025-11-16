@@ -1,38 +1,30 @@
 """
 TEMPLATE: Probabilistic + Deterministic Rules Implementation
 
-⚠️ DOCUMENTATION REORGANIZED:
-For comprehensive documentation, see:
+⚠️ COMPREHENSIVE DOCUMENTATION:
+For detailed documentation, see:
 - docs/training/genai_logic_patterns.md - Universal framework patterns
 - docs/training/probabilistic_logic_guide.md - Probabilistic logic implementation
-- docs/training/pdl_project_guide.md - PDL project workflows and troubleshooting
 
 This file provides a working code reference for copy/paste.
 
 ---
 
-ARCHITECTURE (Post-Refactoring):
-- Business logic: logic/logic_discovery/check_credit.py (use case)
-- Reusable AI handlers: logic/logic_discovery/ai_requests/supplier_selection.py
+ARCHITECTURE:
+- Business logic: logic/logic_discovery/[use_case].py
+- Reusable AI handlers: logic/logic_discovery/ai_requests/[handler].py
 - AI as value computation: Function returns computed value, audit stays in request table
 
 KEY PATTERNS:
 1. Rule.formula(calling=function) - function returns computed value
 2. AI handler in ai_requests/ - reusable across use cases, self-registers
-3. get_supplier_price_from_ai() - encapsulates Request Pattern, returns price
+3. get_XXX_from_ai() - encapsulates Request Pattern, returns computed value
 4. Auto-discovery scans logic_discovery/ recursively (including ai_requests/)
 
 ⚠️ CRITICAL IMPORTS:
 - ALWAYS use: from logic_bank.logic_bank import Rule
 - NEVER use: from logic_bank.rule_bank.rule_bank import RuleBank
 - NEVER use: from logic_bank.extensions.rule_extensions import Rule
-
-⚠️ PDL PROJECT WORKFLOW:
-- restart.sh DELETES all generated logic files (check_credit.py, ai_requests/)
-- This resets project to "clean database" state before adding logic
-- After restart.sh, you MUST regenerate all logic files
-- restart.sh also OVERWRITES admin.yaml (loses custom table additions)
-- See pdl_project_guide.md for complete workflow
 
 This is a working reference implementation showing the complete pattern.
 """
@@ -198,19 +190,6 @@ NEW ARCHITECTURE (Post-Refactoring):
    ```
    
    See: https://apilogicserver.github.io/Docs/Logic-Use/#in-logic
-
-5. COMPLETE WORKFLOW (Understanding restart.sh)
-   - restart.sh RESETS project to "clean database" state
-   - Deletes: logic/logic_discovery/check_credit.py, ai_requests/
-   - Overwrites: database/models.py, ui/admin/admin.yaml from _restart versions
-   - Purpose: Simulate starting from existing database, then add logic
-   
-   After restart.sh, you must:
-   a. Generate logic files (check_credit.py, supplier_selection.py)
-   b. Add SysSupplierReq model to database/models.py
-   c. Run alembic migration (often requires manual editing!)
-   d. Update ui/admin/admin.yaml with SysSupplierReq resource
-   e. Start server and test
 
 4. AUTO-DISCOVERY
    - Scans logic/logic_discovery/ recursively
