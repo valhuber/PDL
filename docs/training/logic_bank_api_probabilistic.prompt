@@ -50,28 +50,34 @@ create complete AI value computation infrastructure:
    - "IF [condition] THEN use AI to [select/compute]..."
 
 ✅ What to Generate AUTOMATICALLY (complete working implementation):
-   1. SysXxxReq model in database/models.py (if doesn't exist)
-   2. Alembic migration to create sys_xxx_req table
-   3. Relationships to parent models (bidirectional)
-   4. Logic files with conditional formula + event handler
-   5. AI request handler using compute_ai_value() utility
-   6. Admin UI resource in ui/admin/admin.yaml
+   1. Check if SysXxxReq model exists in database/models.py
+   2. If NOT exists:
+      a. Add SysXxxReq model to database/models.py
+      b. Add relationships to parent models (bidirectional)
+      c. Generate Alembic migration file
+      d. Instruct user to run migration: cd database && alembic upgrade head
+   3. Logic files with conditional formula + event handler
+   4. AI request handler using compute_ai_value() utility
+   5. Update ui/admin/admin.yaml with SysXxxReq resource
 
 ✅ Example User Prompt:
    "Item unit_price: IF Product has suppliers, use AI to select optimal 
     supplier based on cost and lead time, ELSE copy from Product.unit_price"
 
 ✅ You Should Automatically Generate:
-   - SysSupplierReq model (chosen_supplier_id, chosen_unit_price, reason, etc.)
-   - Migration file (alembic revision --autogenerate)
+   - Check if SysSupplierReq exists in database/models.py
+   - If not, add SysSupplierReq model (chosen_supplier_id, chosen_unit_price, reason, etc.)
+   - If not, generate migration file
    - Conditional formula on Item.unit_price
    - Early event handler that creates SysSupplierReq
    - AI handler that calls compute_ai_value()
    - Copies AI result back to Item.unit_price
 
-NO USER INTERVENTION NEEDED - detect the pattern, create the infrastructure.
+USER ACTION REQUIRED: If new model was created, user must run:
+   cd database && alembic revision --autogenerate -m "Add SysSupplierReq"
+   cd database && alembic upgrade head
 
-This is GENERIC - works for ANY project structure, not just specific demos.
+This is GENERIC - works for ANY project structure.
 
 =============================================================================
 REQUIRED PATTERN: Conditional Formula with AI
@@ -476,7 +482,7 @@ Common Patterns:
    
    ✅ Step 5: Update ui/admin/admin.yaml to add SysSupplierReq resource
    
-   ✅ Step 6: Restart server (to load new model)
+   ✅ Step 6: User restarts server (to load new model and migration)
    
    =============================================================================
    Common Alembic Issues & Solutions
