@@ -1,29 +1,141 @@
-# Probabilistic Rules Design Session - Handoff Document
+# Probabilistic Rules - Copilot Handoff Document
 
-**Date:** November 13-14, 2025  
-**Project:** GenAI Demo Agentic Runtime - Probabilistic Rules via Natural Language  
-**Status:** Design complete, documentation updated, ready for implementation
+**Last Updated:** November 15, 2025  
+**Project:** PDL (Probabilistic Decision Logic) Demonstration  
+**Status:** ✅ COMPLETE - Working implementation with comprehensive training docs
 
 ---
 
-## What We Accomplished
+## 🎯 CRITICAL: Training Architecture (READ THIS FIRST)
 
-### 1. Created the "Rosetta Stone for Probabilistic Rules"
-**File:** `docs/training/logic_bank_api_probabilistic.prompt`
+### For New Copilot Sessions - The Test
 
-A comprehensive training document that teaches ChatGPT/Copilot how to translate natural language into probabilistic logic using `Rule.ai_decision()`. This mirrors the existing `logic_bank_api.prompt` for deterministic rules, completing the DR/PR architecture.
+**Scenario:** User runs `sh restart.sh x` then opens NEW Copilot chat (no history).
 
-### 2. Created User-Facing Documentation
-**File:** `readme_probabilistic.md`
+**What MUST happen:**
+1. Copilot reads `.github/.copilot-instructions.md` (automatic)
+2. That references `docs/training/logic_bank_api_probabilistic.prompt` (541 lines)
+3. Copilot generates correct code using ONLY training docs (not conversation history)
 
-Complete guide showing two demo scenarios:
-- **Scenario 1 (Greenfield):** `als genai create` generates complete system from one prompt
-- **Scenario 2 (Brownfield):** Copilot adds PR to existing database
+**Key Files Copilot Will Read:**
+- `.github/.copilot-instructions.md` - Entry point (generic, reusable)
+- `docs/training/logic_bank_patterns.prompt` - Foundation patterns
+- `docs/training/logic_bank_api_probabilistic.prompt` - AI rules API
+- `docs/training/template_probabilistic_rules.py` - Working code reference
+- `readme_probabilistic.md` - PDL-specific Quick Start (NEW CHAT instruction here)
 
-### 3. Updated Copilot Training
-**File:** `.github/.copilot-instructions.md`
+**What User Asks:**
+```
+Please generate the probabilistic logic for supplier selection based on docs/training/pdl_project_guide.md:
+- Create logic/logic_discovery/check_credit.py
+- Create logic/logic_discovery/ai_requests/supplier_selection.py
+- Add SysSupplierReq model to database/models_restart.py
+- Update ui/admin/admin_restart.yaml
+- Create sys_supplier_req table
+```
 
-Added reference to the new Rosetta Stone so Copilot knows about probabilistic rules.
+### Critical Architectural Separation
+
+**NEVER Mix These:**
+- ❌ Don't put PDL-specific details in `.copilot-instructions.md`
+- ❌ Don't reference conversation history in new sessions
+- ✅ Generic training → `docs/training/*.prompt` files
+- ✅ PDL specifics → `readme_probabilistic.md` and `pdl_project_guide.md`
+
+---
+
+## 🔧 restart.sh Workflow (Key Learning)
+
+**Purpose:** Simulates "existing database" scenario (brownfield).
+
+**What It Does:**
+1. Creates BRAND NEW database from `database/basic_demo.sql`
+2. Copies `database/models_restart.py` → `database/models.py`
+3. Copies `ui/admin/admin_restart.yaml` → `ui/admin/admin.yaml`
+4. Deletes ALL generated logic files (`check_credit.py`, `ai_requests/`)
+
+**Critical Pattern:** Source Files vs Runtime Files
+```
+Source (EDIT THESE):              Runtime (OVERWRITTEN):
+- models_restart.py           →   models.py
+- admin_restart.yaml          →   admin.yaml
+- Logic files: DELETED            Logic files: Regenerated
+```
+
+**Why 2 Audit Rows Happened (The Bug):**
+- First test created Item 6 → audit row 1
+- restart.sh hung on interactive prompt (didn't complete)
+- Database NOT reset
+- Second test created Item 7 → audit row 2
+- **Fix:** Commented out `read -p` prompt, restart.sh now completes
+
+---
+
+## 📂 What We Created (Session Output)
+
+### Files Created/Updated This Session
+
+**Logic Files (Working Implementation):**
+- `logic/logic_discovery/check_credit.py` (69 lines) - Deterministic + conditional AI formula
+- `logic/logic_discovery/ai_requests/supplier_selection.py` (91 lines) - Request Pattern
+- `database/models.py` - Added SysSupplierReq class with relationships
+- `ui/admin/admin.yaml` - Added SysSupplierReq resource
+- Database: `sys_supplier_req` table created via SQL
+
+**Documentation Updated:**
+- `readme_probabilistic.md` - Added "NEW Chat Session" instruction in STEP 2
+- `restart.sh` - Added comprehensive comments explaining workflow
+- `.github/.copilot-instructions.md` - Reverted PDL-specific changes (stays generic)
+
+**Test Results:**
+- ✅ Item creation works: unit_price=105.0, amount=1050.0
+- ✅ Audit trail created in SysSupplierReq
+- ✅ 13 rules loaded and firing correctly
+
+---
+
+## 🧠 Key Learnings
+
+### 1. Agent Mistake: Edited Wrong Files
+**Problem:** Initially edited `database/models.py` and `ui/admin/admin.yaml`
+**Why Wrong:** restart.sh overwrites these from `*_restart` versions
+**Correct:** Must edit `database/models_restart.py` and `ui/admin/admin_restart.yaml`
+**Lesson:** Source files are the source of truth, runtime files are disposable
+
+### 2. alp_verify_only.py Confusion
+**Thought:** It would generate logic files
+**Reality:** It's just a validation script (sets VERIFY_RULES, loads Flask, validates, exits)
+**Lesson:** Don't rely on it for logic generation
+
+### 3. Old Alembic Migrations
+**Found:** Multiple old migrations in `database/alembic/versions/`
+**User Question:** "Why are there old migrations?"
+**Answer:** Accumulated during development cycles
+**Why Don't Matter:** restart.sh creates database from SQL, not migrations
+**Approach:** Used direct SQL to create sys_supplier_req table
+
+### 4. Conversation History Problem
+**Cannot:** Promise to ignore conversation history in same chat
+**Must:** Require NEW chat session for authentic test
+**Updated:** readme_probabilistic.md now says "NEW Chat Session" explicitly
+
+---
+
+## 🎓 Training Documentation Structure
+
+### Generic (Reusable Across All Projects)
+1. **`.github/.copilot-instructions.md`** - Entry point for all GenAI-Logic projects
+2. **`docs/training/logic_bank_patterns.prompt`** - Universal patterns (event signatures, logging, Request Pattern)
+3. **`docs/training/logic_bank_api.prompt`** - Deterministic rules (sum, count, formula, constraint)
+4. **`docs/training/logic_bank_api_probabilistic.prompt`** - Probabilistic rules (AI value computation)
+5. **`docs/training/template_probabilistic_rules.py`** - Working code reference (230 lines)
+
+### PDL-Specific (This Project Only)
+1. **`readme_probabilistic.md`** - Quick Start with 3-step workflow
+2. **`docs/training/pdl_project_guide.md`** - PDL patterns and troubleshooting (601 lines)
+3. **`docs/training/common_errors_probabilistic_rules.md`** - Gotchas checklist
+4. **`docs/training/probabilistic_logic_guide.md`** - Deep dive on patterns
+5. **`docs/training/genai_logic_patterns.md`** - Universal framework patterns
 
 ---
 

@@ -31,11 +31,15 @@ sh restart.sh x
 
 This creates a BRAND NEW database from scratch (simulates existing customer database with no logic).
 
-**STEP 2: Generate Logic via Copilot**
+**STEP 2: Generate Logic via Copilot (NEW Chat Session)**
 
-Ask Copilot to generate the probabilistic logic files. Provide this prompt:
+**IMPORTANT:** Open a **NEW Copilot chat session** (to simulate a cold start without conversation history).
+
+Copilot will automatically read `.github/.copilot-instructions.md` and the training files in `docs/training/`. 
+
+Ask Copilot:
 ```
-Please generate the probabilistic logic for supplier selection:
+Please generate the probabilistic logic for supplier selection based on docs/training/pdl_project_guide.md:
 - Create logic/logic_discovery/check_credit.py with deterministic + conditional AI formula
 - Create logic/logic_discovery/ai_requests/supplier_selection.py with Request Pattern
 - Add SysSupplierReq model to database/models_restart.py with relationships
@@ -43,7 +47,7 @@ Please generate the probabilistic logic for supplier selection:
 - Create sys_supplier_req table in database
 ```
 
-Copilot will create all necessary files. **Key Point:** Changes must go in `*_restart.py` and `*_restart.yaml` files (NOT the runtime versions - they get overwritten by restart.sh).
+Copilot will create all necessary files using ONLY the training documentation (not any prior conversation). **Key Point:** Changes must go in `*_restart.py` and `*_restart.yaml` files (NOT the runtime versions - they get overwritten by restart.sh).
 
 **STEP 3: Start Server and Test**
 ```bash
