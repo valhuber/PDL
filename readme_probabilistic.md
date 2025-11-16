@@ -28,9 +28,11 @@ changelog:
 
 This workflow demonstrates generating logic **from scratch** - it is **NOT for normal development**.
 
-### STEP 1: Reset to Clean Database (DEMO ONLY!)
+### STEP 1: YOU Reset to Clean Database (DEMO ONLY!)
 
 **⚠️ WARNING: This step DELETES ALL LOGIC FILES you've created!**
+
+**YOU (not Copilot) run this command:**
 
 ```bash
 cd /Users/val/dev/ApiLogicServer/ApiLogicServer-dev/org_git/PDL
@@ -52,11 +54,13 @@ sh restart.sh
 - You're in the middle of development
 - You just created files with Copilot
 
+**DO NOT ask Copilot to run restart.sh - you must run it yourself in your terminal!**
+
 ---
 
-### STEP 2: Give Copilot This Prompt
+### STEP 2: YOU Give Copilot This Prompt (Copilot Generates the Logic)
 
-**AFTER running restart.sh** (which deleted all logic files), open a NEW Copilot chat session and paste:
+**AFTER YOU ran restart.sh** (which deleted all logic files), open a NEW Copilot chat session and paste this prompt:
 
 ```
 Check Credit Logic:
@@ -71,12 +75,14 @@ Check Credit Logic:
    - ELSE copy from Product.unit_price
 ```
 
-**What Copilot will generate:**
+**What Copilot will generate from this prompt:**
 - ✅ `logic/logic_discovery/check_credit.py` - 5 deterministic rules + conditional AI formula
 - ✅ `logic/logic_discovery/ai_requests/supplier_selection.py` - Reusable AI handler with Request Pattern
 - ✅ `database/models_restart.py` - Add SysSupplierReq model with relationships
 - ✅ `ui/admin/admin_restart.yaml` - Add SysSupplierReq resource
 - ✅ Create `sys_supplier_req` table in database
+
+**Note:** YOU provide the natural language requirements above. Copilot generates all the implementation code.
 
 **IMPORTANT:** Copilot reads training from `.github/.copilot-instructions.md` and generates complete working implementation. Changes go in `*_restart.py` and `*_restart.yaml` files (source files that restart.sh copies to runtime versions).
 

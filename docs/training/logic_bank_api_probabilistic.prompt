@@ -3,11 +3,12 @@ title: LogicBank Probabilistic Rules API (AI Value Computation)
 description: Training document for translating natural language into probabilistic value computation rules
 source: Generic training for ApiLogicServer projects with probabilistic rules
 usage: AI assistants read this to generate probabilistic + deterministic rules implementations
-version: 1.5
+version: 1.6
 prerequisites:
   - docs/training/logic_bank_patterns.prompt (general patterns - event signatures, logging, request pattern)
   - docs/training/logic_bank_api.prompt (deterministic rule APIs)
 changelog:
+  - 1.6 (Nov 15, 2025): Emphasized Alembic as standard approach, automatic detection of AI patterns
   - 1.5 (Nov 14, 2025): Refactored - extracted general patterns to logic_bank_patterns.prompt (50% size reduction)
   - 1.4 (Nov 14, 2025): Replaced error-recovery instructions with explicit positive patterns
   - 1.3 (Nov 14, 2025): Use introspection-based compute_ai_value() utility
@@ -32,6 +33,45 @@ Before using this file, you MUST read these foundation documents:
    - Complete API signatures and examples
 
 This file contains ONLY AI-specific probabilistic patterns.
+
+=============================================================================
+🤖 AUTOMATIC DETECTION: When to Generate Probabilistic Logic
+=============================================================================
+
+WHEN YOU SEE these patterns in user's natural language prompt, AUTOMATICALLY 
+create complete AI value computation infrastructure:
+
+✅ Trigger Phrases:
+   - "use AI to select/choose..."
+   - "optimize using AI..."
+   - "AI should decide..."
+   - "intelligently select based on..."
+   - "considering [multiple factors] choose..."
+   - "IF [condition] THEN use AI to [select/compute]..."
+
+✅ What to Generate AUTOMATICALLY (complete working implementation):
+   1. SysXxxReq model in database/models.py (if doesn't exist)
+   2. Alembic migration to create sys_xxx_req table
+   3. Relationships to parent models (bidirectional)
+   4. Logic files with conditional formula + event handler
+   5. AI request handler using compute_ai_value() utility
+   6. Admin UI resource in ui/admin/admin.yaml
+
+✅ Example User Prompt:
+   "Item unit_price: IF Product has suppliers, use AI to select optimal 
+    supplier based on cost and lead time, ELSE copy from Product.unit_price"
+
+✅ You Should Automatically Generate:
+   - SysSupplierReq model (chosen_supplier_id, chosen_unit_price, reason, etc.)
+   - Migration file (alembic revision --autogenerate)
+   - Conditional formula on Item.unit_price
+   - Early event handler that creates SysSupplierReq
+   - AI handler that calls compute_ai_value()
+   - Copies AI result back to Item.unit_price
+
+NO USER INTERVENTION NEEDED - detect the pattern, create the infrastructure.
+
+This is GENERIC - works for ANY project structure, not just specific demos.
 
 =============================================================================
 REQUIRED PATTERN: Conditional Formula with AI
@@ -341,15 +381,18 @@ Common Patterns:
    
    Table Generation Logic:
    a) Check if Sys{Domain}Req exists in database/models.py
-   b) If exists and matches convention → Use it
-   c) If exists but wrong structure → ERROR with clear message
-   d) If doesn't exist → Create it with standard structure
+   b) If exists and matches convention → Use it (generate logic only)
+   c) If exists but wrong structure → ERROR with clear message (fail fast)
+   d) If doesn't exist → Create model + generate Alembic migration
    e) Add relationships to other models (Item, Product, Supplier)
-   f) Generate Alembic migration and apply it
    
-   CRITICAL: Alembic Migration Steps (when creating SysXxxReq):
+   =============================================================================
+   CRITICAL: Production-Ready Database Schema Changes via Alembic
+   =============================================================================
    
-   Step 1: Add model to database/models.py with relationships:
+   When Sys{Domain}Req model doesn't exist, use this STANDARD workflow:
+   
+   ✅ Step 1: Add SQLAlchemy model to database/models.py with relationships:
    
    class SysSupplierReq(Base):
        __tablename__ = "sys_supplier_req"
@@ -369,7 +412,7 @@ Common Patterns:
        product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
        chosen_supplier : Mapped["Supplier"] = relationship()
    
-   Step 2: Add child relationships to parent models:
+   ✅ Step 2: Add child relationships to parent models:
    
    # In Product class:
    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="product")
@@ -377,29 +420,102 @@ Common Patterns:
    # In Item class:
    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
    
-   Step 3: Generate and apply Alembic migration to update database schema:
+   ✅ Step 3: Generate Alembic migration (DO NOT manually create SQL):
    
-   # Use alembic to compute and apply the database changes
-   # See: https://apilogicserver.github.io/Docs/Database-Changes/#use-alembic-to-update-database-schema-from-model
-   
+   ```bash
    cd database
-   alembic revision --autogenerate -m "Add SysSupplierReq table"
+   alembic revision --autogenerate -m "Add sys_supplier_req table for AI audit"
+   ```
    
-   # CRITICAL: Edit the generated migration file in database/alembic/versions/
-   # - alembic --autogenerate detects ALL differences between models.py and database
-   # - You must REMOVE unwanted changes (ALTER TABLE statements on existing tables)
-   # - Keep ONLY the CREATE TABLE sys_supplier_req statement
-   # - Simplify downgrade() to only DROP TABLE sys_supplier_req
+   This creates: database/alembic/versions/xxxxx_add_sys_supplier_req_table.py
    
+   ⚠️ CRITICAL: Review and clean the generated migration file:
+   
+   # Alembic --autogenerate detects ALL differences between models.py and database
+   # You MUST manually review and edit the generated file:
+   
+   1. KEEP: CREATE TABLE sys_supplier_req statement
+   2. REMOVE: Any ALTER TABLE on existing tables (unrelated changes)
+   3. SIMPLIFY downgrade(): Just DROP TABLE sys_supplier_req
+   
+   Example cleaned migration:
+   
+   ```python
+   def upgrade():
+       op.create_table('sys_supplier_req',
+           sa.Column('id', sa.Integer(), nullable=False),
+           sa.Column('item_id', sa.Integer(), nullable=True),
+           sa.Column('product_id', sa.Integer(), nullable=False),
+           sa.Column('chosen_supplier_id', sa.Integer(), nullable=True),
+           sa.Column('chosen_unit_price', sa.DECIMAL(), nullable=True),
+           sa.Column('request', sa.String(length=2000), nullable=True),
+           sa.Column('reason', sa.String(length=500), nullable=True),
+           sa.Column('created_on', sa.DateTime(), nullable=False),
+           sa.ForeignKeyConstraint(['chosen_supplier_id'], ['supplier.id']),
+           sa.ForeignKeyConstraint(['item_id'], ['item.id']),
+           sa.ForeignKeyConstraint(['product_id'], ['product.id']),
+           sa.PrimaryKeyConstraint('id')
+       )
+   
+   def downgrade():
+       op.drop_table('sys_supplier_req')
+   ```
+   
+   ✅ Step 4: Apply migration to update database schema:
+   
+   ```bash
    alembic upgrade head
+   ```
    
-   Step 4: Update ui/admin/admin.yaml to add SysSupplierReq resource
+   This is PRODUCTION-READY:
+   - ✅ Version controlled (migration file in git)
+   - ✅ Reversible (alembic downgrade)
+   - ✅ Team-friendly (others run same migration)
+   - ✅ Staged deployment (dev → test → prod)
+   - ✅ Audit trail (history of schema changes)
    
-   Common Alembic Issues:
-   - "Target database is not up to date" → Run `alembic stamp head` first
-   - "Table already exists" → Database has tables but Alembic doesn't know about them, use stamp
-   - "No config file found" → Must run from database/ directory where alembic.ini exists
-   - Python not found → Activate venv first or use python3
+   ✅ Step 5: Update ui/admin/admin.yaml to add SysSupplierReq resource
+   
+   ✅ Step 6: Restart server (to load new model)
+   
+   =============================================================================
+   Common Alembic Issues & Solutions
+   =============================================================================
+   
+   Issue: "Target database is not up to date"
+   Solution: Database schema doesn't match Alembic's tracking. Run:
+     ```bash
+     alembic stamp head
+     ```
+     This tells Alembic "database is current" and allows new migrations.
+   
+   Issue: "Table already exists"
+   Solution: Database has tables but Alembic history is empty. Either:
+     a) Use `alembic stamp head` to mark current state
+     b) Drop conflicting tables and re-run migration
+   
+   Issue: "No config file 'alembic.ini' found"
+   Solution: Must run alembic commands from database/ directory:
+     ```bash
+     cd database
+     alembic revision --autogenerate -m "message"
+     ```
+   
+   Issue: "python: command not found"
+   Solution: Activate virtual environment first:
+     ```bash
+     source venv/bin/activate  # Linux/Mac
+     venv\Scripts\activate     # Windows
+     ```
+   
+   Why NOT Raw SQL?
+   ❌ Raw SQL (CREATE TABLE...) is demo/testing only - NOT production-ready
+   ❌ No version control
+   ❌ No rollback capability
+   ❌ Team members must manually sync
+   ❌ No deployment history
+   
+   ✅ Alembic migrations are the STANDARD approach for any real project
    
    Error Handling for Mismatched Tables:
    If SysXxxReq exists but doesn't match convention, FAIL with:
