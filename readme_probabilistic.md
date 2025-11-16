@@ -24,19 +24,39 @@ changelog:
 
 **This is a demonstration of generating probabilistic + deterministic logic from natural language.**
 
-### STEP 1: Reset to Clean Database
+### ⚠️ IMPORTANT: Demo Setup
+
+This workflow demonstrates generating logic **from scratch** - it is **NOT for normal development**.
+
+### STEP 1: Reset to Clean Database (DEMO ONLY!)
+
+**⚠️ WARNING: This step DELETES ALL LOGIC FILES you've created!**
+
 ```bash
 cd /Users/val/dev/ApiLogicServer/ApiLogicServer-dev/org_git/PDL
-sh restart.sh x
+sh restart.sh
 ```
 
-This creates a BRAND NEW database from scratch (simulates existing customer database with NO logic files).
+**What `restart.sh` does:**
+- ❌ Deletes database and recreates from `database/basic_demo.sql`
+- ❌ Resets `models.py` and `admin.yaml` from `*_restart` versions
+- ❌ **DELETES ALL FILES in `logic/logic_discovery/`** (except auto_discovery.py)
+
+**Only run this when:**
+- Demonstrating code generation from scratch
+- Resetting for a fresh demo
+- You want to start over completely
+
+**DO NOT run this if:**
+- You have logic you want to keep
+- You're in the middle of development
+- You just created files with Copilot
 
 ---
 
 ### STEP 2: Give Copilot This Prompt
 
-**Open a NEW Copilot chat session** (to simulate cold start), then paste:
+**AFTER running restart.sh** (which deleted all logic files), open a NEW Copilot chat session and paste:
 
 ```
 Check Credit Logic:
@@ -121,14 +141,29 @@ curl http://localhost:5656/api/SysSupplierReq
 
 ---
 
-## 📋 What restart.sh Does
+## 📋 Understanding the Demo vs Development Workflow
 
-`restart.sh` simulates starting with an **existing customer database** (no logic, no alembic):
-- Deletes database and recreates from `database/basic_demo.sql` (vanilla customer DB)
-- Resets `models.py` and `admin.yaml` from `*_restart` versions (no audit tables)
-- Deletes all generated logic files (simulates "before adding logic")
+### Demo Workflow (What This Document Shows)
 
-After restart.sh, you have a clean slate to demonstrate adding probabilistic logic to an existing database.
+This document demonstrates **generating everything from scratch** for presentation purposes:
+
+1. **Run `restart.sh`** - Wipes everything clean (⚠️ DESTRUCTIVE!)
+2. **Give prompt to Copilot** - Generates all files fresh
+3. **Test** - Verify the generated code works
+
+**This is for DEMONSTRATING the generation capability, not normal development.**
+
+### Normal Development Workflow (What You Should Do)
+
+When actually building or extending a system:
+
+1. **DO NOT run `restart.sh`** - It deletes your work!
+2. **Give prompt to Copilot** - It creates files in the existing project
+3. **Manually copy changes** from `models_restart.py` to `models.py` if needed
+4. **Run alembic migration** to update the database schema
+5. **Test** - Verify your changes work
+
+**Key Difference:** In development, you keep your existing files and incrementally add to them.
 
 ---
 

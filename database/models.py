@@ -103,7 +103,7 @@ class Supplier(Base):  # type: ignore
 
     # child relationships (access children)
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="supplier")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys="[SysSupplierReq.chosen_supplier_id]")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="chosen_supplier")
 
 
 
@@ -171,10 +171,9 @@ class Item(Base):  # type: ignore
     SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
 
 
-
 class SysSupplierReq(Base):  # type: ignore
     """
-    description: Audit trail for AI-driven supplier selection decisions.
+    description: Audit table for AI supplier selection requests - tracks chosen supplier, reasoning, and context.
     """
     __tablename__ = 'sys_supplier_req'
     _s_collection_name = 'SysSupplierReq'  # type: ignore
@@ -189,8 +188,9 @@ class SysSupplierReq(Base):  # type: ignore
     created_on = Column(DateTime, default=datetime.datetime.utcnow)
 
     # parent relationships (access parent)
-    item : Mapped["Item"] = relationship(back_populates=("SysSupplierReqList"))
-    product : Mapped["Product"] = relationship(back_populates=("SysSupplierReqList"))
-    chosen_supplier : Mapped["Supplier"] = relationship(foreign_keys=[chosen_supplier_id])
+    item : Mapped["Item"] = relationship(back_populates="SysSupplierReqList")
+    product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
+    chosen_supplier : Mapped["Supplier"] = relationship(back_populates="SysSupplierReqList")
 
     # child relationships (access children)
+
