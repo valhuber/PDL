@@ -19,18 +19,38 @@ changelog:
 
 # Probabilistic Rules: Natural Language → AI Value Computation
 
-## 🚀 Quick Test - Verify It Works
+## 🚀 Quick Start - Complete Workflow
 
-### Test Procedure (Command Line)
+### For New Users: 3 Simple Steps
 
-**1. Start the server:**
+**STEP 1: Reset to Clean Database (Vanilla Customer DB)**
 ```bash
 cd /path/to/PDL
 sh restart.sh x
 ```
 
-**2. Test with curl (add Egyptian Cotton Sheets to order):**
+This creates a BRAND NEW database from scratch (simulates existing customer database with no logic).
+
+**STEP 2: Generate Logic via Copilot**
+
+Ask Copilot to generate the probabilistic logic files. Provide this prompt:
+```
+Please generate the probabilistic logic for supplier selection:
+- Create logic/logic_discovery/check_credit.py with deterministic + conditional AI formula
+- Create logic/logic_discovery/ai_requests/supplier_selection.py with Request Pattern
+- Add SysSupplierReq model to database/models_restart.py with relationships
+- Update ui/admin/admin_restart.yaml with SysSupplierReq resource
+- Create sys_supplier_req table in database
+```
+
+Copilot will create all necessary files. **Key Point:** Changes must go in `*_restart.py` and `*_restart.yaml` files (NOT the runtime versions - they get overwritten by restart.sh).
+
+**STEP 3: Start Server and Test**
 ```bash
+# Start server
+python api_logic_server_run.py
+
+# Test in another terminal - add Egyptian Cotton Sheets to order
 curl -X POST http://localhost:5656/api/Item \
   -H "Content-Type: application/vnd.api+json" \
   -d '{
@@ -43,11 +63,46 @@ curl -X POST http://localhost:5656/api/Item \
       }
     }
   }'
+
+# Verify audit trail was created
+curl http://localhost:5656/api/SysSupplierReq
 ```
 
 **Expected Result:**
-- ✅ Item created successfully
-- ✅ AI selects NJ supplier ($205/unit) over Near East ($105/unit)
+- ✅ Item created with unit_price=105.0, amount=1050.0
+- ✅ SysSupplierReq audit record created
+- ✅ Supplier selected with reason: "Selected supplier 1 with lowest cost"
+- ✅ Full audit trail captured (supplier_id, unit_price, reason, timestamp)
+
+---
+
+## 📋 What restart.sh Does
+
+`restart.sh` simulates starting with an **existing customer database** (no logic, no alembic):
+- Deletes database and recreates from `database/basic_demo.sql` (vanilla customer DB)
+- Resets `models.py` and `admin.yaml` from `*_restart` versions (no audit tables)
+- Deletes all generated logic files (simulates "before adding logic")
+
+After restart.sh, you have a clean slate to demonstrate adding probabilistic logic to an existing database.
+
+---
+
+## 🎯 Key Files to Update
+
+When generating logic, Copilot should update these SOURCE files (not the runtime versions):
+
+| Source File (Edit This) | Runtime File (Gets Overwritten) | Purpose |
+|-------------------------|----------------------------------|---------|
+| `database/models_restart.py` | `database/models.py` | Add SysSupplierReq model |
+| `ui/admin/admin_restart.yaml` | `ui/admin/admin.yaml` | Add SysSupplierReq resource |
+| `logic/logic_discovery/check_credit.py` | (same) | Main business logic |
+| `logic/logic_discovery/ai_requests/supplier_selection.py` | (same) | Reusable AI handler |
+
+restart.sh copies `*_restart` files to runtime versions, so changes must go in the source files.
+
+---
+
+## 🔧 Detailed Test Verification
 - ✅ Reason: "Suez Canal blockage" from config/ai_test_context.yaml
 - ✅ Order total updated (Item.amount → Order.amount_total)
 - ✅ Customer balance updated (Order.amount_total → Customer.balance)

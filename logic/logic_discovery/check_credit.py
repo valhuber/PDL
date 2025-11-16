@@ -1,50 +1,78 @@
 """
-Credit Check Logic with AI Supplier Selection
-Generated from training/template_probabilistic_rules.py
+Deterministic + Probabilistic Rules for PDL Demo
+
+This module demonstrates conditional logic that uses AI when appropriate.
 """
 
+import database.models as models
 from logic_bank.exec_row_logic.logic_row import LogicRow
-from database import models
-from logic.logic_discovery.ai_requests.supplier_selection import get_supplier_price_from_ai
 from logic_bank.logic_bank import Rule
+from logic.logic_discovery.ai_requests.supplier_selection import get_supplier_price_from_ai
 
 
-def ItemUnitPriceFromSupplier(row: models.Item, old_row, logic_row: LogicRow):
+def declare_logic():
     """
-    Formula to compute Item.unit_price based on supplier selection via AI.
-    
-    Uses LogicBank's triggered insert pattern:
-    - Creates SysSupplierReq audit record using logic_row.new_logic_row()
-    - Triggers supplier_id_from_ai event handler which populates chosen fields
-    - Returns the chosen_unit_price from the audit record
-    
-    This pattern avoids "Session is already flushing" errors.
+    Declare business rules combining deterministic and probabilistic logic.
     """
-    if row.product.count_suppliers == 0:
-        # No suppliers available - use product price
-        logic_row.log(f"Item - Product {row.product_id} has no suppliers, using product price")
-        return row.product.unit_price
     
-    # Product has suppliers - call AI via triggered insert pattern
-    return get_supplier_price_from_ai(
-        row=row,
-        logic_row=logic_row,
-        candidates='product.ProductSupplierList',
-        optimize_for='lowest cost',
-        fallback='product.unit_price'
+    # ========================================
+    # DETERMINISTIC RULES
+    # ========================================
+    
+    # Rule 1: Customer balance constraint
+    Rule.constraint(
+        validate=models.Customer,
+        as_condition=lambda row: row.balance <= row.credit_limit,
+        error_msg="Customer balance ({row.balance}) exceeds credit limit ({row.credit_limit})"
     )
-
-
-# Register the formula rule
-Rule.formula(derive=models.Item.unit_price, calling=ItemUnitPriceFromSupplier)
-
-# Sum rule for Item.amount (unit_price * quantity)
-Rule.formula(derive=models.Item.amount, as_expression=lambda row: row.unit_price * row.quantity)
-
-# Aggregate rules for Order
-Rule.sum(derive=models.Order.amount_total, as_sum_of=models.Item.amount)
-
-# Constraint rule for Customer credit check
-Rule.constraint(validate=models.Customer,
-                as_condition=lambda row: row.balance <= row.credit_limit,
-                error_msg="Customer balance ({row.balance}) exceeds credit limit ({row.credit_limit})")
+    
+    # Rule 2: Customer balance is sum of unshipped orders
+    Rule.sum(
+        derive=models.Customer.balance,
+        as_sum_of=models.Order.amount_total,
+        where=lambda row: row.date_shipped is None
+    )
+    
+    # Rule 3: Order amount_total is sum of item amounts
+    Rule.sum(
+        derive=models.Order.amount_total,
+        as_sum_of=models.Item.amount
+    )
+    
+    # Rule 4: Item amount formula
+    Rule.formula(
+        derive=models.Item.amount,
+        as_expression=lambda row: row.quantity * row.unit_price
+    )
+    
+    # Rule 5a: Count suppliers for each product
+    Rule.count(
+        derive=models.Product.count_suppliers,
+        as_count_of=models.ProductSupplier
+    )
+    
+    # ========================================
+    # CONDITIONAL FORMULA WITH AI
+    # ========================================
+    
+    # Rule 5b: Item unit_price - Conditional formula with AI integration
+    def ItemUnitPriceFromSupplier(row: models.Item, old_row: models.Item, logic_row: LogicRow):
+        """
+        Determine Item.unit_price based on supplier availability:
+        - IF Product has NO suppliers → use product.unit_price (deterministic)
+        - IF Product has suppliers → call AI to select optimal supplier (probabilistic)
+        """
+        if row.product.count_suppliers == 0:
+            logic_row.log(f"Item - Product has no suppliers, using product.unit_price")
+            return row.product.unit_price
+        
+        # Product has suppliers - use AI to get optimal supplier price
+        return get_supplier_price_from_ai(
+            row=row,
+            logic_row=logic_row,
+            candidates='product.ProductSupplierList',
+            optimize_for='fastest reliable delivery while keeping costs reasonable',
+            fallback='min:unit_cost'
+        )
+    
+    Rule.formula(derive=models.Item.unit_price, calling=ItemUnitPriceFromSupplier)

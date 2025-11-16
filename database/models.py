@@ -1,6 +1,6 @@
 # coding: utf-8
 import datetime
-from sqlalchemy import DECIMAL, DateTime, func  # API Logic Server GenAI assist
+from sqlalchemy import DECIMAL, DateTime  # API Logic Server GenAI assist
 from sqlalchemy import Column, DECIMAL, Date, ForeignKey, Integer, String, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -66,7 +66,7 @@ class Customer(Base):  # type: ignore
 
 class Product(Base):  # type: ignore
     """
-    description: Represents a product available in the system with a unit price.
+    description: Represents a product with its own name and unit price.
     """
     __tablename__ = 'product'
     _s_collection_name = 'Product'  # type: ignore
@@ -81,7 +81,7 @@ class Product(Base):  # type: ignore
     # child relationships (access children)
     ItemList : Mapped[List["Item"]] = relationship(back_populates="product")
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="product")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="product")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.product_id]', back_populates="product")
 
 
 
@@ -103,7 +103,7 @@ class Supplier(Base):  # type: ignore
 
     # child relationships (access children)
     ProductSupplierList : Mapped[List["ProductSupplier"]] = relationship(back_populates="supplier")
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="supplier")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.chosen_supplier_id]', back_populates="supplier")
 
 
 
@@ -168,12 +168,12 @@ class Item(Base):  # type: ignore
     product : Mapped["Product"] = relationship(back_populates=("ItemList"))
 
     # child relationships (access children)
-    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(back_populates="item")
+    SysSupplierReqList : Mapped[List["SysSupplierReq"]] = relationship(foreign_keys='[SysSupplierReq.item_id]', back_populates="item")
 
 
 class SysSupplierReq(Base):  # type: ignore
     """
-    description: Audit table for AI supplier selection requests and results
+    description: Audit table for AI supplier selection requests and results.
     """
     __tablename__ = 'sys_supplier_req'
     _s_collection_name = 'SysSupplierReq'  # type: ignore
@@ -185,11 +185,11 @@ class SysSupplierReq(Base):  # type: ignore
     chosen_unit_price : DECIMAL = Column(DECIMAL)
     request = Column(String)
     reason = Column(String)
-    created_on = Column(DateTime, server_default=func.now())
+    created_on = Column(DateTime, server_default='CURRENT_TIMESTAMP')
 
     # parent relationships (access parent)
-    item : Mapped["Item"] = relationship(back_populates="SysSupplierReqList")
-    product : Mapped["Product"] = relationship(back_populates="SysSupplierReqList")
-    supplier : Mapped["Supplier"] = relationship(back_populates="SysSupplierReqList")
+    item : Mapped["Item"] = relationship(foreign_keys=[item_id], back_populates="SysSupplierReqList")
+    product : Mapped["Product"] = relationship(foreign_keys=[product_id], back_populates="SysSupplierReqList")
+    supplier : Mapped["Supplier"] = relationship(foreign_keys=[chosen_supplier_id], back_populates="SysSupplierReqList")
 
     # child relationships (access children)
